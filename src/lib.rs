@@ -55,23 +55,33 @@ pub mod cell {
         return (a, b);
     }
 
-    pub fn round_nearest_color(val: &Color, a: &Color, b: &Color) -> Color {
+    pub enum NearestOption{
+        A,
+        B
+    }
+
+    /// Compares the val against a & b.
+    /// Returns 0 if a is closer , 1 if b is closer
+    pub fn compare_nearest_color(val: &Color, a: &Color, b: &Color) -> NearestOption {
         
         let dist_a = val.distance2(a);
         let dist_b = val.distance2(b);
         if dist_a > dist_b {
-            b.clone()
+            NearestOption::B
         } else {
-            a.clone()
+            NearestOption::A
         }
     }
-
+    
     pub fn round_cell_pixels(val: &CellPixels) -> CellPixels {
         let (a, b) = minmax_contrast(val);
         let mut copy = val.clone();
         for p_index in 0..copy.len() {
             let current = copy[p_index].clone();
-            copy[p_index] = round_nearest_color(&current, &a, &b);
+            copy[p_index] = match compare_nearest_color(&current, &a, &b) {
+                NearestOption::A => a.clone(),
+                NearestOption::B => b.clone(),
+            };
             // round_nearest_color(&copy[p_index], &a, &b);
             // copy[p_index] = if p_index % 3 == 0 { a } else { b } .clone()
         }
@@ -142,4 +152,6 @@ pub mod cell {
 
         (data, im_w, im_h)
     }
+
+    
 }
