@@ -27,7 +27,8 @@ pub mod cell {
         let mut pair: [Color; 2] = [color::WHITE, color::BLACK];
         let avg = values.iter().fold(color::TRANSPARENT, |a,b| a+b.clone()) / values.len() as f32;
         
-
+        // Hybrid approach where we use find the values closest to the darkest & lightest possible values (transparent & white)
+        // This in theory should give us the colors with the biggest contrast
         for i in 0..values.len() {
             let ele = values[i];
             let dark_dist = ele.distance2(&color::TRANSPARENT);
