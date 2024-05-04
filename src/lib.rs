@@ -3,13 +3,10 @@ mod tests;
 
 pub mod color;
 
-
-
 pub mod cell {
     pub const CELL_W: u32 = 2;
     pub const CELL_H: u32 = 4;
     pub type CellPixels = [Color; 8];
-
 
     use crate::color::{self, Color};
 
@@ -20,13 +17,13 @@ pub mod cell {
         // Not used anymore
         // B̶r̶u̶t̶e̶ f̶o̶r̶c̶e̶ b̶y̶ c̶h̶e̶c̶k̶i̶n̶g̶ e̶v̶e̶r̶y̶ p̶o̶i̶n̶t̶. T̶h̶i̶s̶ i̶s̶ O̶(̶N̶^̶2̶)̶. H̶o̶w̶e̶v̶e̶r̶ w̶e̶ o̶n̶l̶y̶ h̶a̶v̶e̶ 8̶ p̶o̶i̶n̶t̶s̶ t̶o̶ c̶o̶n̶s̶i̶d̶e̶r̶, s̶o̶ i̶t̶ i̶s̶ o̶n̶l̶y̶ 8̶x̶8̶ -̶> 6̶4̶ c̶o̶m̶p̶a̶r̶i̶s̶o̶n̶
 
- 
         // Biggest distances from the brightest and darkest values
         let mut current_max_bright_dist: f32 = 0.0;
         let mut current_max_dark_dist: f32 = 0.0;
         let mut pair: [Color; 2] = [color::WHITE, color::BLACK];
-        let avg = values.iter().fold(color::TRANSPARENT, |a,b| a+b.clone()) / values.len() as f32;
-        
+        let avg =
+            values.iter().fold(color::TRANSPARENT, |a, b| a + b.clone()) / values.len() as f32;
+
         // Hybrid approach where we use find the values closest to the darkest & lightest possible values (transparent & white)
         // This in theory should give us the colors with the biggest contrast
         for i in 0..values.len() {
@@ -44,27 +41,24 @@ pub mod cell {
                 current_max_bright_dist = bright_dist;
                 pair[1] = ele;
                 continue;
-            }  
+            }
         }
 
         // A should be brightest, B should be darkest
         let a = avg.lerp(pair[0], 0.75); // lerp results to reduces sharpness and better consistency
         let b = avg.lerp(pair[1], 0.75);
-        
-        
 
         return (a, b);
     }
 
-    pub enum NearestOption{
+    pub enum NearestOption {
         A,
-        B
+        B,
     }
 
     /// Compares the val against a & b.
     /// Returns 0 if a is closer , 1 if b is closer
     pub fn compare_nearest_color(val: &Color, a: &Color, b: &Color) -> NearestOption {
-        
         let dist_a = val.distance2(a);
         let dist_b = val.distance2(b);
         if dist_a > dist_b {
@@ -73,13 +67,12 @@ pub mod cell {
             NearestOption::A
         }
     }
-    
-    pub fn round_cell_pixels(val: &CellPixels) -> CellPixels {
-        let (a, b) = minmax_contrast(val);
+
+    pub fn round_cell_pixels(val: &CellPixels, a: &Color, b: &Color) -> CellPixels {
         let mut copy = val.clone();
         for p_index in 0..copy.len() {
             let current = copy[p_index].clone();
-            copy[p_index] = match compare_nearest_color(&current, &a, &b) {
+            copy[p_index] = match compare_nearest_color(&current, a, b) {
                 NearestOption::A => a.clone(),
                 NearestOption::B => b.clone(),
             };
@@ -89,11 +82,11 @@ pub mod cell {
 
         copy
     }
-    
+
     pub fn generate_cells(img: &image::Rgba32FImage) -> (Vec<CellPixels>, u32) {
         let cols = img.width() / CELL_W;
         let rows = img.height() / CELL_H;
-        
+
         let mut cells_arrays: Vec<[[f32; 4]; 8]> = Vec::with_capacity(img.len());
         for y in 0..(rows) {
             for x in 0..(cols) {
@@ -117,11 +110,20 @@ pub mod cell {
         (cells, cols)
     }
 
+    /// Round the pixel values in the cells to their two light & dark colors determined by minmax_contrast
     pub fn round_cells(cells: &mut Vec<CellPixels>) {
         for i in 0..cells.len() {
             let ele = &cells[i];
- 
-            cells[i] = round_cell_pixels(ele);
+            let (a, b) = minmax_contrast(ele);
+            cells[i] = round_cell_pixels(ele, &a, &b);
+        }
+    }
+
+    /// Round the pixel values in the cells to two colors (a & b)
+    pub fn round_cells_with_ab(cells: &mut Vec<CellPixels>, a: &Color, b: &Color){
+        for i in 0..cells.len() {
+            let ele = &cells[i];
+            cells[i] = round_cell_pixels(ele, &a, &b);
         }
     }
 
@@ -154,6 +156,4 @@ pub mod cell {
 
         (data, im_w, im_h)
     }
-
-    
 }
