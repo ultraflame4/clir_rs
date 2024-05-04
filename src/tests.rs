@@ -66,7 +66,7 @@ fn round_cell_test() {
 }
 
 #[test]
-fn round_cell_black_white_test() {
+fn round_cell_bw_test() {
     // This test will create an 2x& cell, and find the two colors most distant from each other in each cell.
     println!("Current directory: {:?}", current_dir().unwrap());
     let img = ImageReader::open("./test_resource/test_image_2.png")
@@ -81,7 +81,8 @@ fn round_cell_black_white_test() {
     let cell_generation_time = before_cell.elapsed();
 
     let before_round = Instant::now();
-    cell::round_cells_with_ab(&mut cells, &color::WHITE, &color::BLACK);
+    /// Transparent is used instead of black for bw as the alpha channel is included as part of the comparisons Hence using transparency gives better results
+    cell::round_cells_with_ab(&mut cells, &color::WHITE, &color::TRANSPARENT);
     let round_cell_time = before_round.elapsed();
 
     let (data, im_w, im_h) = cell::cells_to_image(&cells, cols);
