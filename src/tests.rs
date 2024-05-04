@@ -35,7 +35,7 @@ fn generate_cell_test() {
 fn round_cell_test() {
     // This test will create an 2x& cell, and find the two colors most distant from each other in each cell.
     println!("Current directory: {:?}", current_dir().unwrap());
-    let img = ImageReader::open("./test_resource/test_image.png")
+    let img = ImageReader::open("./test_resource/test_image_2.png")
         .unwrap()
         .decode()
         .unwrap();
@@ -60,7 +60,7 @@ fn round_cell_test() {
     let im: image::ImageBuffer<Rgba<f32>, _> =
         image::ImageBuffer::from_raw(im_w, im_h, bytes_vec.clone()).unwrap();
     let dyn_im = image::DynamicImage::from(im);
-    dyn_im.into_rgba8().save("./test-outputs/rounded_cells2.png").unwrap();
+    dyn_im.into_rgba8().save("./test-outputs/rounded_cells4.png").unwrap();
 
     println!("Image size ({}x{}) | Cells count: {} | Cell Generate Time: {:.2?} | Round Cell Pixels time: {:.2?}", img.width(), img.height(), cells.len(), cell_generation_time, round_cell_time);
 }

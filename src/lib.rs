@@ -1,139 +1,9 @@
 #[cfg(test)]
 mod tests;
 
-pub mod color {
-    
-    use std::ops;
-
-    use cgmath::{MetricSpace, Vector3};
+pub mod color;
 
 
-    #[repr(C)]
-    #[derive(Debug, Clone, Copy, PartialEq)]
-    pub struct Color {
-        r: f32,
-        g: f32,
-        b: f32,
-        a: f32,
-    }
-
-    unsafe impl bytemuck::Zeroable for Color {}
-    unsafe impl bytemuck::Pod for Color {}
-
-    #[repr(C)]
-    #[derive(Debug, Clone, Copy, PartialEq)]
-    pub struct ColorU8 {
-        r: u8,
-        g: u8,
-        b: u8,
-        a: u8,
-    }
-
-    unsafe impl bytemuck::Zeroable for ColorU8 {}
-    unsafe impl bytemuck::Pod for ColorU8 {}
-
-    impl Into<ColorU8> for Color {
-        fn into(self) -> ColorU8 {
-            ColorU8 {
-                r: (self.r * 255.0).clamp(0.0, 255.0) as u8,
-                g: (self.g * 255.0).clamp(0.0, 255.0) as u8,
-                b: (self.b * 255.0).clamp(0.0, 255.0) as u8,
-                a: (self.a * 255.0).clamp(0.0, 255.0) as u8,
-            }
-        }
-    }
-
-    pub const BLACK: Color = Color {
-        r: 0.0,
-        g: 0.0,
-        b: 0.0,
-        a: 1.0,
-    };
-    pub const WHITE: Color = Color{
-        r: 1.0,
-        g: 1.0,
-        b: 1.0,
-        a: 1.0,
-    };
-    pub const TRANSPARENT: Color = Color {
-        r: 0.0,
-        g: 0.0,
-        b: 0.0,
-        a: 0.0,
-    };
-
-    impl Color {
-        
-        pub fn mag2(&self) -> f32{
-            self.r * self.r +
-            self.g * self.g +
-            self.b * self.b +
-            self.a * self.a
-        }
-        
-        pub fn distance2(&self, other: &Self) -> f32 {
-            (self.clone() - other.clone()).mag2()
-        }
-
-        pub fn lerp(self, other: Self, amt: f32) -> Self {
-            self + ((other - self) * amt)
-        }
-    }
-    
-
-    impl ops::Sub<Color> for Color{
-        type Output = Self;
-    
-        fn sub(self, rhs: Color) -> Self::Output {
-            Self { 
-                r: self.r - rhs.r,
-                g: self.g - rhs.g,
-                b: self.b - rhs.b,
-                a: self.a - rhs.a,
-            }
-        }
-    }
-
-    impl ops::Add<Color> for Color{
-        type Output = Self;
-    
-        fn add(self, rhs: Color) -> Self::Output {
-            Self { 
-                r: self.r + rhs.r,
-                g: self.g + rhs.g,
-                b: self.b + rhs.b,
-                a: self.a + rhs.a,
-            }
-        }
-    }
-
-    impl ops::Div<f32> for Color{
-        type Output = Self;
-    
-        fn div(self, rhs: f32) -> Self::Output {
-            Self { 
-                r: self.r / rhs,
-                g: self.g / rhs,
-                b: self.b / rhs,
-                a: self.a / rhs,
-            }
-        }
-    }
-
-    impl ops::Mul<f32> for Color{
-        type Output = Self;
-    
-        fn mul(self, rhs: f32) -> Self::Output {
-            Self { 
-                r: self.r * rhs,
-                g: self.g * rhs,
-                b: self.b * rhs,
-                a: self.a * rhs,
-            }
-        }
-    }
-
-}
 
 pub mod cell {
     pub const CELL_W: u32 = 2;
@@ -147,26 +17,38 @@ pub mod cell {
     /// This is done to get the two colors with the most contrast in the cell.
     pub fn minmax_contrast(values: &CellPixels) -> (Color, Color) {
         // Traditional approach
-        // Brute force by checking every point. This is O(N^2). However we only have 8 points to consider, so it is only 8x8 -> 64 comparison
+        // Not used anymore
+        // B̶r̶u̶t̶e̶ f̶o̶r̶c̶e̶ b̶y̶ c̶h̶e̶c̶k̶i̶n̶g̶ e̶v̶e̶r̶y̶ p̶o̶i̶n̶t̶. T̶h̶i̶s̶ i̶s̶ O̶(̶N̶^̶2̶)̶. H̶o̶w̶e̶v̶e̶r̶ w̶e̶ o̶n̶l̶y̶ h̶a̶v̶e̶ 8̶ p̶o̶i̶n̶t̶s̶ t̶o̶ c̶o̶n̶s̶i̶d̶e̶r̶, s̶o̶ i̶t̶ i̶s̶ o̶n̶l̶y̶ 8̶x̶8̶ -̶> 6̶4̶ c̶o̶m̶p̶a̶r̶i̶s̶o̶n̶
 
-        let mut current_max_dist: f32 = 0.0;
-        let mut pair: [Color; 2] = [color::BLACK, color::BLACK];
+ 
+        // Biggest distances from the brightest and darkest values
+        let mut current_max_bright_dist: f32 = 0.0;
+        let mut current_max_dark_dist: f32 = 0.0;
+        let mut pair: [Color; 2] = [color::WHITE, color::BLACK];
         let avg = values.iter().fold(color::TRANSPARENT, |a,b| a+b.clone()) / values.len() as f32;
-        for a in values {
-            for b in values {
-                if a == b {
-                    continue;
-                }
-                let d = a.distance2(b);
-                if d > current_max_dist {
-                    current_max_dist = d;
-                    pair[0] = a.clone();
-                    pair[1] = b.clone();
-                }
+        
+
+        for i in 0..values.len() {
+            let ele = values[i];
+            let dark_dist = ele.distance2(&color::TRANSPARENT);
+            let bright_dist = ele.distance2(&color::WHITE);
+
+            if dark_dist > current_max_dark_dist {
+                current_max_dark_dist = dark_dist;
+                pair[0] = ele;
+                continue;
             }
+
+            if bright_dist > current_max_bright_dist {
+                current_max_bright_dist = bright_dist;
+                pair[1] = ele;
+                continue;
+            }  
         }
-        let b = avg.lerp(pair[0], 0.5);
-        let a = avg.lerp(pair[1], 0.5);
+
+        // A should be brightest, B should be darkest
+        let a = avg.lerp(pair[0], 0.75); // lerp results to reduces sharpness and better consistency
+        let b = avg.lerp(pair[1], 0.75);
         
         
 
@@ -196,11 +78,11 @@ pub mod cell {
 
         copy
     }
-
+    
     pub fn generate_cells(img: &image::Rgba32FImage) -> (Vec<CellPixels>, u32) {
         let cols = img.width() / CELL_W;
         let rows = img.height() / CELL_H;
-
+        
         let mut cells_arrays: Vec<[[f32; 4]; 8]> = Vec::with_capacity(img.len());
         for y in 0..(rows) {
             for x in 0..(cols) {
@@ -227,7 +109,6 @@ pub mod cell {
         for i in 0..cells.len() {
             let ele = &cells[i];
  
-
             cells[i] = round_cell_pixels(ele);
         }
     }
