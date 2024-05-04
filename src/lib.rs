@@ -100,6 +100,7 @@ pub mod cell {
                 let cell_x = x * CELL_W;
                 let cell_y = y * CELL_H;
 
+                // Todo optimise this portion. When using test_image_2, ~30ms is used for looping. Another ~10ms is used for creating the cells
                 #[rustfmt::skip]
                 let cell_pixels = [
                     img.get_pixel(cell_x, cell_y + 0).0, img.get_pixel(cell_x + 1,cell_y + 0).0,
