@@ -1,4 +1,4 @@
-use std::env::current_dir;
+use std::{env::current_dir, fs};
 
 use image::{io::Reader as ImageReader, Rgba};
 
@@ -60,6 +60,7 @@ fn round_cell_test() {
     let im: image::ImageBuffer<Rgba<f32>, _> =
         image::ImageBuffer::from_raw(im_w, im_h, bytes_vec.clone()).unwrap();
     let dyn_im = image::DynamicImage::from(im);
+    fs::create_dir("./test-outputs/");
     dyn_im.into_rgba8().save("./test-outputs/rounded_cells4.png").unwrap();
 
     println!("Image size ({}x{}) | Cells count: {} | Cell Generate Time: {:.2?} | Round Cell Pixels time: {:.2?}", img.width(), img.height(), cells.len(), cell_generation_time, round_cell_time);
@@ -95,6 +96,7 @@ fn round_cell_bw_test() {
     let im: image::ImageBuffer<Rgba<f32>, _> =
         image::ImageBuffer::from_raw(im_w, im_h, bytes_vec.clone()).unwrap();
     let dyn_im = image::DynamicImage::from(im);
+    fs::create_dir("./test-outputs/");
     dyn_im.into_rgba8().save("./test-outputs/bw_rounded_cells4.png").unwrap();
 
     println!("Image size ({}x{}) | Cells count: {} | Cell Generate Time: {:.2?} | Round Cell Pixels time: {:.2?}", img.width(), img.height(), cells.len(), cell_generation_time, round_cell_time);
