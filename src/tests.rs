@@ -1,6 +1,6 @@
 use std::env::current_dir;
 
-use image::{io::Reader as ImageReader, ImageFormat, Rgba};
+use image::{io::Reader as ImageReader, Rgba};
 
 use crate::cell;
 
