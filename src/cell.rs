@@ -3,9 +3,11 @@ pub const CELL_H: u32 = 4;
 pub const CELL_LEN: u32 = CELL_W * CELL_H;
 pub type CellPixels = [Color; CELL_LEN as usize];
 
+use std::ops::Index;
+
 use image::Rgba;
 
-use crate::{color::Color, NearestOption};
+use crate::{charsets, color::Color, NearestOption};
 pub struct CellGrid {
     pub cells: Vec<CellPixels>,
     width: u32,
@@ -133,9 +135,9 @@ pub fn compute_minmax_contrast(values: &CellPixels) -> (Color, Color) {
 
 /// Rounds & flattens the pixels colours in the cells to either a or b. \
 /// Also creates a bitmask that shows which pixel got turned into a or b with the bits conversion as a=1 , b=0 \
-/// 
-/// <i>Note for developers: This uses u8 to store the bitmask. If CELL_W * CELL_H != 8, the bitmask value will be incorrect and likely have missing bits </i> \ 
-/// 
+///
+/// <i>Note for developers: This uses u8 to store the bitmask. If CELL_W * CELL_H != 8, the bitmask value will be incorrect and likely have missing bits </i> \
+///
 /// Returns (Rounded CellPixels, bitmask)
 pub fn cell_flatten_ab(val: &CellPixels, a: &Color, b: &Color) -> (CellPixels, u8) {
     let mut copy = val.clone();
@@ -154,7 +156,6 @@ pub fn cell_flatten_ab(val: &CellPixels, a: &Color, b: &Color) -> (CellPixels, u
     (copy, mask)
 }
 
-
 /// Round the pixel values in the cells to their two light & dark colors determined by minmax_contrast
 pub fn round_cells(cells: &mut Vec<CellPixels>) {
     for i in 0..cells.len() {
@@ -172,54 +173,89 @@ pub fn round_cells_with_ab(cells: &mut Vec<CellPixels>, a: &Color, b: &Color) {
     }
 }
 
-
-
-
-
-pub struct ComputedCell{
+pub struct ComputedCell {
     fore: Color,
     back: Color,
-    bitmask: u8
+    bitmask: u8,
 }
 
-pub struct ComputedCellGrid{
+pub struct ComputedCellGrid {
     pub cells: Vec<ComputedCell>,
     width: u32,
     height: u32,
 }
 
-impl CellGrid{
-    pub fn to_computed(&self) -> ComputedCellGrid{
-        ComputedCellGrid::create(self)
+impl CellGrid {
+    pub fn to_computed(&self) -> ComputedCellGrid {
+        ComputedCellGrid::create(self, None, None)
+    }
+
+    pub fn to_computed_ab(&self, a: &Color, b: &Color) -> ComputedCellGrid {
+        ComputedCellGrid::create(self, Some(a), Some(b))
     }
 }
 
-impl ComputedCellGrid{
-    fn create(grid: &CellGrid) -> Self {
-        
-        let computed_cells: Vec<ComputedCell> = grid.cells.iter().map(|x| {
-            let (fore, back) = compute_minmax_contrast(x);
-            let (_, bitmask) = cell_flatten_ab(x, &fore, &back);
-            ComputedCell {
-                fore,
-                back,
-                bitmask,
-            }
-        }).collect();
+impl ComputedCellGrid {
+    fn create(grid: &CellGrid, fore: Option<&Color>, back: Option<&Color>) -> Self {
+        let computed_cells: Vec<ComputedCell> = grid
+            .cells
+            .iter()
+            .map(|x| {
+                let (fore_, back_) = if fore.is_some() && back.is_some() {
+                    (fore.unwrap().clone(), back.unwrap().clone())
+                } else {
+                    compute_minmax_contrast(x)
+                };
 
-        Self {  
+                let (_, bitmask) = cell_flatten_ab(x, &fore_, &back_);
+                ComputedCell {
+                    fore: fore_,
+                    back: back_,
+                    bitmask,
+                }
+            })
+            .collect();
+
+        Self {
             cells: computed_cells,
             width: grid.width(),
             height: grid.height(),
         }
     }
 
-    pub fn to_string(&self) -> String{
-        let mut s = String::new();
+    const UTF8_BYTE_SIZE: usize = 4;
+    pub fn to_string(&self, colored: bool, charset: Option<&str>) -> (String, charsets::CharsetWarnings) {
+        let capacity = (self.cells.len() + self.height() as usize) * ComputedCellGrid::UTF8_BYTE_SIZE * if colored {} else {1};
+        let mut s = String::with_capacity(capacity);
 
-        s
+        let characters: Vec<char> = charset.unwrap_or(charsets::BRAILLE).chars().collect();
+        let mut missing_char: bool = false;
+        for i in 0..self.cells.len() {
+            let cell = &self.cells[i];
+            let index = charsets::cell_bitmask_to_char_index(cell.bitmask);
+            
+
+            s.push(if index as usize > characters.len() {
+                missing_char = true;
+                '?'
+            } else {
+                characters[index as usize]
+            });
+
+            if i % (self.width()) as usize == 0 && i != 0{
+                s.push_str("\n");
+            }
+        }
+
+        (
+            s,
+            if missing_char {
+                charsets::CharsetWarnings::NotEnoughCharacters
+            } else {
+                charsets::CharsetWarnings::None
+            },
+        )
     }
-
 
     pub fn width(&self) -> u32 {
         self.width
