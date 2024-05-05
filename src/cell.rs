@@ -171,3 +171,60 @@ pub fn round_cells_with_ab(cells: &mut Vec<CellPixels>, a: &Color, b: &Color) {
         (cells[i], _) = cell_flatten_ab(ele, &a, &b);
     }
 }
+
+
+
+
+
+pub struct ComputedCell{
+    fore: Color,
+    back: Color,
+    bitmask: u8
+}
+
+pub struct ComputedCellGrid{
+    pub cells: Vec<ComputedCell>,
+    width: u32,
+    height: u32,
+}
+
+impl CellGrid{
+    pub fn to_computed(&self) -> ComputedCellGrid{
+        ComputedCellGrid::create(self)
+    }
+}
+
+impl ComputedCellGrid{
+    fn create(grid: &CellGrid) -> Self {
+        
+        let computed_cells: Vec<ComputedCell> = grid.cells.iter().map(|x| {
+            let (fore, back) = compute_minmax_contrast(x);
+            let (_, bitmask) = cell_flatten_ab(x, &fore, &back);
+            ComputedCell {
+                fore,
+                back,
+                bitmask,
+            }
+        }).collect();
+
+        Self {  
+            cells: computed_cells,
+            width: grid.width(),
+            height: grid.height(),
+        }
+    }
+
+    pub fn to_string(&self) -> String{
+        let mut s = String::new();
+
+        s
+    }
+
+
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+    pub fn height(&self) -> u32 {
+        self.height
+    }
+}
