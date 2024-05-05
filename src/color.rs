@@ -1,5 +1,7 @@
 use std::ops;
 
+use crate::NearestOption;
+
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Color {
@@ -35,27 +37,29 @@ impl Into<ColorU8> for Color {
     }
 }
 
-pub const BLACK: Color = Color {
-    r: 0.0,
-    g: 0.0,
-    b: 0.0,
-    a: 1.0,
-};
-pub const WHITE: Color = Color{
-    r: 1.0,
-    g: 1.0,
-    b: 1.0,
-    a: 1.0,
-};
-pub const TRANSPARENT: Color = Color {
-    r: 0.0,
-    g: 0.0,
-    b: 0.0,
-    a: 0.0,
-};
+
 
 impl Color {
     
+    pub const BLACK: Color = Color {
+        r: 0.0,
+        g: 0.0,
+        b: 0.0,
+        a: 1.0,
+    };
+    pub const WHITE: Color = Color{
+        r: 1.0,
+        g: 1.0,
+        b: 1.0,
+        a: 1.0,
+    };
+    pub const TRANSPARENT: Color = Color {
+        r: 0.0,
+        g: 0.0,
+        b: 0.0,
+        a: 0.0,
+    };
+
     pub fn mag2(&self) -> f32{
         self.r * self.r +
         self.g * self.g +
@@ -78,6 +82,18 @@ impl Color {
             g: (p1.b - self.b) * (p2.r - self.r) - (p1.r - self.r) * (p2.b - self.b),
             b: (p1.r - self.r) * (p2.g - self.g) - (p1.g - self.g) * (p2.r - self.r),
             a: 0.0,
+        }
+    }
+    
+    /// Compares the val against a & b.
+    /// Returns NearestOption::A if a is closer , NearestOption::B if b is closer
+    pub fn compare_nearest(val: &Color, a: &Color, b: &Color) -> NearestOption {
+        let dist_a = val.distance2(a);
+        let dist_b = val.distance2(b);
+        if dist_a > dist_b {
+            NearestOption::B
+        } else {
+            NearestOption::A
         }
     }
 
