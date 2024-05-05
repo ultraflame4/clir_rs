@@ -131,8 +131,10 @@ pub fn compute_minmax_contrast(values: &CellPixels) -> (Color, Color) {
     return (a, b);
 }
 
-/// Rounds & flattens the pixels colours in the cells to either a or b.
-/// Also returns a bitmask that shows which pixel got turned into a or b. 1 is a. 0 is b
+/// Rounds & flattens the pixels colours in the cells to either a or b. \
+/// Also creates a bitmask that shows which pixel got turned into a or b with the bits conversion as a=1 , b=0 \
+/// 
+/// <i>Note for developers: This uses u8 to store the bitmask. If CELL_W * CELL_H != 8, the bitmask value will be incorrect and likely have missing bits </i> \ 
 /// 
 /// Returns (Rounded CellPixels, bitmask)
 pub fn cell_flatten_ab(val: &CellPixels, a: &Color, b: &Color) -> (CellPixels, u8) {
