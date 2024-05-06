@@ -3,11 +3,10 @@ pub const CELL_H: u32 = 4;
 pub const CELL_LEN: u32 = CELL_W * CELL_H;
 pub type CellPixels = [Color; CELL_LEN as usize];
 
-use std::ops::Index;
 
 use image::Rgba;
 
-use crate::{charsets, color::Color, NearestOption};
+use crate::{ansi, charsets, color::Color, NearestOption};
 pub struct CellGrid {
     pub cells: Vec<CellPixels>,
     width: u32,
@@ -224,8 +223,14 @@ impl ComputedCellGrid {
     }
 
     const UTF8_BYTE_SIZE: usize = 4;
-    pub fn to_string(&self, colored: bool, charset: Option<&str>) -> (String, charsets::CharsetWarnings) {
-        let capacity = (self.cells.len() + self.height() as usize) * ComputedCellGrid::UTF8_BYTE_SIZE * if colored {} else {1};
+    pub fn to_string(
+        &self,
+        colored: bool,
+        charset: Option<&str>,
+    ) -> (String, charsets::CharsetWarnings) {
+        let capacity = (self.cells.len() + self.height() as usize)
+            * ComputedCellGrid::UTF8_BYTE_SIZE
+            * if colored { 8 } else { 1 };
         let mut s = String::with_capacity(capacity);
 
         let characters: Vec<char> = charset.unwrap_or(charsets::BRAILLE).chars().collect();
@@ -233,16 +238,28 @@ impl ComputedCellGrid {
         for i in 0..self.cells.len() {
             let cell = &self.cells[i];
             let index = charsets::cell_bitmask_to_char_index(cell.bitmask);
-            
 
-            s.push(if index as usize > characters.len() {
+            let char_ = if index as usize > characters.len() {
                 missing_char = true;
                 '?'
             } else {
                 characters[index as usize]
-            });
+            };
 
-            if i % (self.width()) as usize == 0 && i != 0{
+            if colored {
+                let fore = ansi::convert(cell.fore, true);
+                // print!("{:?}",cell.fore);
+                let back = ansi::convert(cell.back, true);
+                s.push_str(&fore.on(back).paint(char_.to_string()).to_string())
+
+            }
+            else{
+
+                s.push(char_);
+    
+            };
+            
+            if i % (self.width()) as usize == 0 && i != 0 {
                 s.push_str("\n");
             }
         }

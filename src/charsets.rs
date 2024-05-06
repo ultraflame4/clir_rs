@@ -21,7 +21,7 @@ pub enum CharsetWarnings{
 ///
 /// See https://en.wikipedia.org/wiki/Braille_Patterns#/media/File:Braille8dotCellNumbering.svg
 pub fn cell_bitmask_to_char_index(bitmask_: u8) -> u8 {
-    let bitmask : u8= 1;
+    let bitmask : u8= bitmask_;
     let mut result = 0;
 
     // Keep only the 1st & last 3 bits so we can work on position 2-5

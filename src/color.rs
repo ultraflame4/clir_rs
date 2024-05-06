@@ -16,27 +16,36 @@ unsafe impl bytemuck::Pod for Color {}
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct ColorU8 {
-    r: u8,
-    g: u8,
-    b: u8,
-    a: u8,
+pub struct RGBColorU8 {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
 }
 
-unsafe impl bytemuck::Zeroable for ColorU8 {}
-unsafe impl bytemuck::Pod for ColorU8 {}
+unsafe impl bytemuck::Zeroable for RGBColorU8 {}
+unsafe impl bytemuck::Pod for RGBColorU8 {}
 
-impl Into<ColorU8> for Color {
-    fn into(self) -> ColorU8 {
-        ColorU8 {
-            r: (self.r * 255.0).clamp(0.0, 255.0) as u8,
-            g: (self.g * 255.0).clamp(0.0, 255.0) as u8,
-            b: (self.b * 255.0).clamp(0.0, 255.0) as u8,
-            a: (self.a * 255.0).clamp(0.0, 255.0) as u8,
+impl Into<RGBColorU8> for Color {
+    fn into(self) -> RGBColorU8 {
+        RGBColorU8 {
+            r: (self.r * self.a * 255.0).round().clamp(0.0, 255.0) as u8,
+            g: (self.g * self.a * 255.0).round().clamp(0.0, 255.0) as u8,
+            b: (self.b * self.a * 255.0).round().clamp(0.0, 255.0) as u8,
         }
     }
 }
 
+
+impl RGBColorU8{
+    pub fn u32(&self) -> u32{
+        let mut x:u32 = 0;
+        x |= (self.r as u32) << 24;
+        x |= (self.g as u32) << 16;
+        x |= (self.b as u32) << 8;
+        x |= 255;
+        x
+    }
+}
 
 
 impl Color {

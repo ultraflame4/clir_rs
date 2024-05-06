@@ -7,6 +7,6 @@ pub enum NearestOption {
 }
 pub mod charsets;
 pub mod color;
-pub mod ascii_codes;
+pub mod ansi;
 
 pub mod cell;
