@@ -63,9 +63,13 @@ struct CliArgs {
     #[argh(switch)]
     no_print: bool,
 
-    /// specifies the character set to use. Valid options are ["braille", "classic"]. Defaults to classic not available [default: "classic"]
+    /// specifies the character set to use. Valid options are ["braille", "classic"]. Uses default for unknown values [default: "classic"]
     #[argh(option)]
     charset: Option<String>,
+
+    /// sets the method use to scale the image. Valid options are ["nearest","linear","gaussian"]. Uses default for unknown values  [default: "linear"]
+    #[argh(option)]
+    scaling: Option<String>,
 }
 
 const DEFAULT_WIDTH: usize = 100;
@@ -85,20 +89,19 @@ struct RenderSettings {
     src: DynamicImage,
 }
 
-#[derive(Debug)]
-enum RenderSettingsFromArgsErrs {
-    DecodeError(image::ImageError),
-    IoError(std::io::Error),
-}
-
 impl RenderSettings {
-    // Reduces width o height to match the aspect ratio
-    pub fn keep_aspect(width: usize, height: usize, aspect: f32) -> (usize, usize) {
+    // Reduces width or height to match the aspect ratio
+    pub fn keep_aspect(
+        width: usize,
+        height: usize,
+        aspect: f32,
+        use_width: Option<bool>,
+    ) -> (usize, usize) {
         let width_ = CELL_W * width;
         let height_ = CELL_H * height;
         let new_width = (height_ as f32 * aspect / CELL_W as f32).floor();
         let new_height = (width_ as f32 / aspect / CELL_H as f32).floor();
-        if new_height < (height as f32) {
+        if use_width.unwrap_or(new_height < (height as f32)) {
             (width as usize, new_height as usize)
         } else {
             (new_width as usize, height)
@@ -112,10 +115,7 @@ impl RenderSettings {
         }
     }
 
-    pub fn from_args(
-        args: &CliArgs,
-        img: DynamicImage,
-    ) -> Result<Self, RenderSettingsFromArgsErrs> {
+    pub fn from_args(args: &CliArgs, img: DynamicImage) -> Self {
         let aspect = img.width() as f32 / img.height() as f32;
 
         let output_size = if args.use_original_image_size {
@@ -126,18 +126,28 @@ impl RenderSettings {
             } else {
                 Self::autodetected_size()
             };
-            let suggested_size = if args.no_keep_aspect {
-                (dw, dh)
+
+            let unwrapped_size = (args.width.unwrap_or(dw), args.height.unwrap_or(dh));
+
+            let (fw, fh) = if args.no_keep_aspect || (args.width.is_some() && args.height.is_some())
+            {
+                unwrapped_size
             } else {
-                Self::keep_aspect(dw, dh, aspect)
+                // When use_width is true, it will always scale the height instead.
+                // Hence by using width.is_some(), when -w, it will scale height, 
+                // when -h, it will scale width. -w & -h should never happen because it is checked in the previous if condition
+                Self::keep_aspect(
+                    unwrapped_size.0,
+                    unwrapped_size.1,
+                    aspect,
+                    Some(args.width.is_some()),
+                )
             };
-            (
-                args.width.unwrap_or(suggested_size.0) * cell::CELL_W,
-                args.height.unwrap_or(suggested_size.1) * cell::CELL_H,
-            )
+
+            (fw * CELL_W, fh * CELL_H)
         };
 
-        Ok(Self {
+        Self {
             im_height: output_size.1 as u32,
             im_width: output_size.0 as u32,
             render_mode: if args.plain_text {
@@ -149,7 +159,7 @@ impl RenderSettings {
             },
             output: args.output.clone(),
             src: img,
-        })
+        }
     }
 }
 
@@ -190,13 +200,7 @@ fn main() -> ExitCode {
         }
     };
 
-    let config = match RenderSettings::from_args(&args, img) {
-        Ok(x) => x,
-        Err(err) => {
-            eprintln!("Fatal error: {:#?}", err);
-            return ExitCode::FAILURE;
-        }
-    };
+    let config = RenderSettings::from_args(&args, img);
 
     if args.debug {
         println!(
@@ -207,7 +211,7 @@ fn main() -> ExitCode {
     let img = config.src.resize_exact(
         config.im_width,
         config.im_height,
-        image::imageops::FilterType::Triangle,
+        utils::get_scaling(&args.scaling.unwrap_or("".to_owned())),
     );
 
     use std::time::Instant;
