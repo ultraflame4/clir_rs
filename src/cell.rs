@@ -261,7 +261,7 @@ impl ComputedCellGrid {
     
             };
             
-            if i % (self.width()) as usize == 0 && i != 0 {
+            if (i+1) % (self.width()) as usize == 0 {
                 s.push_str("\n");
             }
         }
