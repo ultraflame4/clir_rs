@@ -12,6 +12,7 @@ use clir_rs::{
     utils,
 };
 use image::{io::Reader as ImageReader, DynamicImage};
+use is_url::is_url;
 
 #[derive(FromArgs, Debug)]
 /// Renders an image to the console as unicode art
@@ -111,23 +112,10 @@ impl RenderSettings {
         }
     }
 
-    pub fn from_args(args: &CliArgs) -> Result<Self, RenderSettingsFromArgsErrs> {
-        if args.debug {
-            println!("Expanding source image '{:?}'", &args.source)
-        }
-        let expanded = utils::expand_path(&args.source);
-        if args.debug {
-            println!("Reading image from '{:?}'", expanded)
-        }
-
-        let img = match ImageReader::open(expanded) {
-            Ok(img_data) => match img_data.decode() {
-                Ok(x) => x,
-                Err(e) => return Err(RenderSettingsFromArgsErrs::DecodeError(e)),
-            },
-            Err(e) => return Err(RenderSettingsFromArgsErrs::IoError(e)),
-        };
-
+    pub fn from_args(
+        args: &CliArgs,
+        img: DynamicImage,
+    ) -> Result<Self, RenderSettingsFromArgsErrs> {
         let aspect = img.width() as f32 / img.height() as f32;
 
         let output_size = if args.use_original_image_size {
@@ -165,14 +153,44 @@ impl RenderSettings {
     }
 }
 
+fn read_image(path: &str, debug: bool) -> anyhow::Result<DynamicImage> {
+    anyhow::Ok(if is_url(&path) {
+        if debug {
+            println!("Requesting image from url '{:?}'", path);
+        }
+        let res = reqwest::blocking::get(path)?;
+        if debug {
+            println!("Response '{:#?}'", res);
+        }
+        let bytes = res.bytes()?;
+        image::load_from_memory(&bytes)?
+    } else {
+        if debug {
+            println!("Expanding source image '{:?}'", &path);
+        }
+        let expanded = utils::expand_path(&path);
+        println!("Reading image from '{:?}'", expanded);
+        ImageReader::open(expanded)?.decode()?
+    })
+}
+
 fn main() -> ExitCode {
     let before_cmd = Instant::now();
     let args: CliArgs = argh::from_env();
 
     if args.debug {
-        println!("Runnning with arguments: {:#?}", args);
+        println!("Running with arguments: {:#?}", args);
     }
-    let config = match RenderSettings::from_args(&args) {
+
+    let img = match read_image(&args.source, args.debug) {
+        Ok(x) => x,
+        Err(e) => {
+            eprintln!("Fatal error while trying to read image: {:#?}", e);
+            return ExitCode::FAILURE;
+        }
+    };
+
+    let config = match RenderSettings::from_args(&args, img) {
         Ok(x) => x,
         Err(err) => {
             eprintln!("Fatal error: {:#?}", err);
@@ -222,7 +240,7 @@ fn main() -> ExitCode {
     if args.debug {
         match fs::create_dir("./clir_rs_debug/") {
             Ok(_) => {}
-            Err(e) => eprintln!("Fatal err, failed to create debug output dir {:?}", e),
+            Err(e) => eprintln!("Warning: failed to create debug output dir {:?}", e),
         };
         cells.save_as("./clir_rs_debug/colored_cells.png").unwrap();
         cell::round_cells_with_ab(&mut cells.cells, &Color::WHITE, &Color::TRANSPARENT);
