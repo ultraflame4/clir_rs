@@ -1,6 +1,5 @@
 use std::{
-    fs,
-    process::ExitCode,
+    fs::{self, File}, io::Write, process::ExitCode
 };
 
 use argh::FromArgs;
@@ -24,7 +23,7 @@ struct CliArgs {
 
     /// disables automatic resizing of output size to fit the terminal if available. Using --width or --height will override the detected values.
     ///
-    /// When not available or disabled, autosize sets width to 100, height is derived from aspect ratio . If --no_keep_aspect is set, height will be set to 25
+    /// When not available or disabled, autosize sets width to 100, height is derived from aspect ratio . If --no-keep-aspect is set, height will be set to 25
     #[argh(switch)]
     no_autosize: bool,
 
@@ -55,6 +54,10 @@ struct CliArgs {
     /// overrides all size options. Uses the orginal image's size. Calculation is (image.width / CELL_W, image.height / CELL_H) Where CELL_W & CELL_H is typically 2 & 4 respectively.
     #[argh(switch)]
     use_original_image_size: bool,
+
+    /// when set, doesn't print out the resulting unicode art. Still prints debug & other information
+    #[argh(switch)]
+    no_print: bool,
 
     /// specifies the character set to use. Valid options are ["braille", "classic"]. Defaults to classic not available [default: "classic"]
     #[argh(option)]
@@ -197,20 +200,26 @@ fn main() -> ExitCode {
     let round_cell_time = before_round.elapsed();
 
     let before_string = Instant::now();
-    let (s, _) = computed.to_string(colored, Some(charsets::get_charset(&args.charset.unwrap_or("".to_string()))));
+    let (s, _) = computed.to_string(
+        colored,
+        Some(charsets::get_charset(
+            &args.charset.unwrap_or("".to_string()),
+        )),
+    );
     let string_time = before_string.elapsed();
 
     if args.debug {
         match fs::create_dir("./clir_rs_debug/") {
-            Ok(_) => {},
-            Err(e) => eprintln!("Fatal err, failed to create debug output dir {:?}",e),
+            Ok(_) => {}
+            Err(e) => eprintln!("Fatal err, failed to create debug output dir {:?}", e),
         };
         cells.save_as("./clir_rs_debug/colored_cells.png").unwrap();
         cell::round_cells_with_ab(&mut cells.cells, &Color::WHITE, &Color::TRANSPARENT);
         cells.save_as("./clir_rs_debug/bw_cells.png").unwrap();
     }
-
-    println!("{}", s);
+    if !args.no_print {
+        println!("{}", s);
+    }
     println!(
         "Source Image Size ({}x{}={}) | Final Image size ({}x{}={}) | Cells count: {} ({}x{}={})",
         config.src.width(),
@@ -228,6 +237,18 @@ fn main() -> ExitCode {
         "Cell Generate Time: {:.2?} | Round Cell Pixels time: {:.2?} | String time: {:.2?} | Total compute time {:.2?}",
         cell_time, round_cell_time, string_time, round_cell_time + string_time + cell_time
     );
+
+    match args.output {
+        Some(path) => match File::create(path.clone()) {
+            Ok(mut file) => match file.write_all(s.as_bytes()) {
+                Ok(_) => (),
+                Err(e) => eprintln!("Failed to write output to path at '{:?}' due to {:?}", path, e),
+            },
+            Err(e) => eprintln!("Failed to write output to path at '{:?}' due to {:?}", path, e),
+        },
+        None => (),
+    }
+
     print!("Command completed in: {:.2?}", before_cmd.elapsed());
     ExitCode::SUCCESS
 }
