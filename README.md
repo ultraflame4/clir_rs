@@ -1,6 +1,18 @@
 # CliR.rs
 The hilarously fast successor of [CliRenderer](https://github.com/ultraflame4/CliR/) written in rust. Most of the features in the python version were kept.
 
+<details>
+  <summary><h2>Images</h2></summary>
+Here is an example I rendered, using a screenshot of the old version as the image source \
+<code>$ clir_rs https://github.com/ultraflame4/CliR/raw/main/resources/img.png</code>
+       
+![image](https://github.com/ultraflame4/clir_rs/assets/34125174/ec911c89-0dcc-47cd-b246-2d88a2268eb7)
+Screenshot - https://github.com/ultraflame4/CliR/main/resources/img.png \
+Original - Pixabay. (2017, February 25). View Of High Rise Buildings during Day Time
+
+</details>
+
+
 ## Building & Install
 > [!NOTE]  
 > rust is needed to build & install this program! See [installing rust](https://www.rust-lang.org/tools/install).
@@ -44,6 +56,7 @@ Options:
                     Where CELL_W & CELL_H is typically 2 & 4 respectively.
   --help            display usage information
 ```
+
 
 
 ## Benchmarks
