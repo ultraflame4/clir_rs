@@ -1,3 +1,5 @@
+use std::process::{exit, ExitCode};
+
 use argh::FromArgs;
 use image::io::Reader as ImageReader;
 
@@ -62,6 +64,13 @@ struct RenderSettings {
     render_mode: RenderMode,
     output: Option<String>,
 }
+
+#[derive(Debug)]
+enum RenderSettingsFromArgsErrs {
+    DecodeError(image::ImageError),
+    IoError(std::io::Error),
+}
+
 impl RenderSettings {
     pub fn scale_aspect(width: usize, aspect: f32) -> usize {
         let rounded: u32 = (width as f32 / aspect).round() as u32;
@@ -75,14 +84,17 @@ impl RenderSettings {
         }
     }
 
-    pub fn from_args(args: CliArgs) {
-        let img = ImageReader::open("./test_resource/test_image.png")
-            .unwrap()
-            .decode()
-            .unwrap();
+    pub fn from_args(args: &CliArgs) -> Result<Self, RenderSettingsFromArgsErrs> {
+        let img = match ImageReader::open(&args.source) {
+            Ok(img_data) => match img_data.decode() {
+                Ok(x) => x,
+                Err(e) => return Err(RenderSettingsFromArgsErrs::DecodeError(e)),
+            },
+            Err(e) => return Err(RenderSettingsFromArgsErrs::IoError(e)),
+        };
 
         let aspect = img.width() as f32 / img.height() as f32;
-  
+
         let output_size = if args.use_original_image_size {
             (img.width() as usize, img.height() as usize)
         } else {
@@ -93,13 +105,34 @@ impl RenderSettings {
             )
         };
 
-        
-
+        Ok(Self {
+            height: output_size.1 as u32,
+            width: output_size.0 as u32,
+            render_mode: if args.plain_text {
+                RenderMode::PlainText
+            } else if args.no_color {
+                RenderMode::NoColor
+            } else {
+                RenderMode::Color
+            },
+            output: args.output.clone(),
+        })
     }
 }
 
-fn main() {
+fn main() -> ExitCode {
     let args: CliArgs = argh::from_env();
-    // let settings = RenderSettings::from(args);
-    println!("{:#?}", args)
+
+    if args.debug{
+        println!("Runnning with arguments: {:#?}", args);
+    }
+    let settings = match RenderSettings::from_args(&args) {
+        Ok(x) => x,
+        Err(err) => {
+            eprintln!("Fatal error: {:#?}", err);
+            return ExitCode::FAILURE;
+        },
+    };
+
+    ExitCode::SUCCESS
 }
