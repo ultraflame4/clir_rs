@@ -5,7 +5,7 @@ use std::{
 
 use argh::FromArgs;
 use clir_rs::{
-    cell::{self, CellGrid, CELL_W},
+    cell::{self, CellGrid, CELL_H, CELL_W},
     color::Color,
 };
 use image::{io::Reader as ImageReader, DynamicImage};
@@ -83,8 +83,10 @@ impl RenderSettings {
     // Reduces width o height to match the aspect ratio
     pub fn keep_aspect(width: usize, height: usize, aspect: f32) -> (usize, usize){
         
-        let new_width = (height as f32 * aspect).floor();
-        let new_height = (width as f32 / aspect).floor();
+        let width_ = CELL_W * width;
+        let height_ = CELL_H * height;
+        let new_width = (height_ as f32 * aspect / CELL_W as f32).floor();
+        let new_height = (width_ as f32 / aspect / CELL_H as f32).floor();
         if new_height < (height as f32){
             (width as usize, new_height as usize)
         }
@@ -163,7 +165,7 @@ fn main() -> ExitCode {
             config.im_width, config.im_height
         );
     }
-    let img = config.src.resize(
+    let img = config.src.resize_exact(
         config.im_width,
         config.im_height,
         image::imageops::FilterType::Triangle,
