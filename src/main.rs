@@ -92,7 +92,7 @@ enum RenderSettingsFromArgsErrs {
 }
 
 impl RenderSettings {
-    // Reduces width o height to match the aspect ratio
+    // Reduces width or height to match the aspect ratio
     pub fn keep_aspect(width: usize, height: usize, aspect: f32) -> (usize, usize) {
         let width_ = CELL_W * width;
         let height_ = CELL_H * height;
@@ -126,15 +126,16 @@ impl RenderSettings {
             } else {
                 Self::autodetected_size()
             };
-            let suggested_size = if args.no_keep_aspect {
-                (dw, dh)
+
+            let unwrapped_size = (args.width.unwrap_or(dw), args.height.unwrap_or(dh));
+
+            let (fw, fh) = if args.no_keep_aspect || (args.width.is_some() && args.height.is_some()) {
+                unwrapped_size
             } else {
-                Self::keep_aspect(dw, dh, aspect)
+                Self::keep_aspect(unwrapped_size.0, unwrapped_size.1, aspect)
             };
-            (
-                args.width.unwrap_or(suggested_size.0) * cell::CELL_W,
-                args.height.unwrap_or(suggested_size.1) * cell::CELL_H,
-            )
+
+            (fw * CELL_W, fh * CELL_H)
         };
 
         Ok(Self {
