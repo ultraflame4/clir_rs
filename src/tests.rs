@@ -3,7 +3,8 @@ use std::{env::current_dir, fs};
 use image::{io::Reader as ImageReader, Rgba};
 
 use crate::{
-    cell::{self, CellGrid},
+    cell::{self, CellGrid, CellPixels},
+    charsets,
     color::{self, Color},
 };
 
@@ -123,7 +124,6 @@ fn print_bw_test() {
              img.width(), img.height(), cells.len(), cell_generation_time, round_cell_time, string_time);
 }
 
-
 #[test]
 fn print_colored_test() {
     // This test will create an 2x& cell, and find the two colors most distant from each other in each cell.
@@ -153,8 +153,44 @@ fn print_colored_test() {
         .save_as("./test-outputs/print_colored_cells.png")
         .unwrap();
 
+    cell::round_cells_with_ab(&mut cells.cells, &Color::WHITE, &Color::TRANSPARENT);
+    cells
+        .save_as("./test-outputs/bw_print_colored_cells.png")
+        .unwrap();
+
     println!("{}", s);
-    println!("Image size ({}x{}) | Cells count: {} ({}x{})", img.width(), img.height(), cells.len(), cells.width(),cells.height());
-    println!("Cell Generate Time: {:.2?} | Round Cell Pixels time: {:.2?} | String time: {:.2?}",
-              cell_generation_time, round_cell_time, string_time);
+    println!(
+        "Image size ({}x{}) | Cells count: {} ({}x{})",
+        img.width(),
+        img.height(),
+        cells.len(),
+        cells.width(),
+        cells.height()
+    );
+    println!(
+        "Cell Generate Time: {:.2?} | Round Cell Pixels time: {:.2?} | String time: {:.2?}",
+        cell_generation_time, round_cell_time, string_time
+    );
+}
+
+#[test]
+fn braille_charset_bits_conv_test() {
+    #[rustfmt::skip]
+    let cell: CellPixels  = [
+        Color::WHITE, Color::BLACK,
+        Color::WHITE, Color::WHITE,
+        Color::WHITE, Color::WHITE,
+        Color::WHITE, Color::BLACK,
+    ];
+
+    let (_, bitmask) = cell::cell_flatten_ab(&cell, &Color::WHITE, &Color::BLACK);
+    println!("Cell bitmask      : 0b{:0>8b}", bitmask);
+    let converted = charsets::cell_bitmask_to_char_index(bitmask);
+    println!("Converted bitmask : 0b{:0>8b}", converted);
+    let c =  charsets::BRAILLE.chars().nth(converted as usize).unwrap();
+    println!(
+        "Braille character : {:?}",
+        c
+    );
+    assert!(c=='⡷');
 }
