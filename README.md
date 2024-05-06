@@ -1,9 +1,11 @@
 # CliR.rs
 The hilarously fast successor of [CliRenderer](https://github.com/ultraflame4/CliR/) written in rust. Most of the features in the python version were kept.
 
-## Install
-This program can be installed with `cargo install` \
-`cargo install --git https://github.com/ultraflame4/clir_rs`
+## Building & Install
+> [!NOTE]  
+> rust is needed to build & install this program! See [installing rust](https://www.rust-lang.org/tools/install).
+
+Install with `cargo install --git https://github.com/ultraflame4/clir_rs`.
 
 ## Usage
 ```
