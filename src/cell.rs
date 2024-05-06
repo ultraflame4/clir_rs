@@ -1,30 +1,29 @@
-pub const CELL_W: u32 = 2;
-pub const CELL_H: u32 = 4;
-pub const CELL_LEN: u32 = CELL_W * CELL_H;
+pub const CELL_W: usize = 2;
+pub const CELL_H: usize = 4;
+pub const CELL_LEN: usize = CELL_W * CELL_H;
 pub type CellPixels = [Color; CELL_LEN as usize];
-
 
 use image::Rgba;
 
 use crate::{ansi, charsets, color::Color, NearestOption};
 pub struct CellGrid {
     pub cells: Vec<CellPixels>,
-    width: u32,
-    height: u32,
+    width: usize,
+    height: usize,
 }
 
 impl CellGrid {
-    pub fn width(&self) -> u32 {
+    pub fn width(&self) -> usize {
         self.width
     }
-    pub fn height(&self) -> u32 {
+    pub fn height(&self) -> usize {
         self.height
     }
     pub fn len(&self) -> usize {
         self.cells.len()
     }
 
-    pub fn as_image_bytes(&self) -> (Vec<Color>, u32, u32) {
+    pub fn as_image_bytes(&self) -> (Vec<Color>, usize, usize) {
         let im_w = self.width() * CELL_W;
         let im_h = self.height() * CELL_H;
 
@@ -56,7 +55,8 @@ impl CellGrid {
     pub fn save_as(&self, fp: &str) -> Result<(), image::ImageError> {
         let (bytes, im_w, im_h) = self.as_image_bytes();
         let im: image::ImageBuffer<Rgba<f32>, _> =
-            image::ImageBuffer::from_raw(im_w, im_h, bytemuck::cast_vec(bytes)).unwrap();
+            image::ImageBuffer::from_raw(im_w as u32, im_h as u32, bytemuck::cast_vec(bytes))
+                .unwrap();
         let dyn_im = image::DynamicImage::from(im);
         dyn_im.into_rgba8().save(fp)
     }
@@ -64,14 +64,14 @@ impl CellGrid {
 
 impl From<&image::Rgba32FImage> for CellGrid {
     fn from(img: &image::Rgba32FImage) -> Self {
-        let cols = img.width() / CELL_W;
-        let rows = img.height() / CELL_H;
+        let cols = img.width() as usize / CELL_W;
+        let rows = img.height() as usize / CELL_H;
 
         let mut cells_arrays: Vec<[[f32; 4]; 8]> = Vec::with_capacity(img.len());
         for y in 0..(rows) {
             for x in 0..(cols) {
-                let cell_x = x * CELL_W;
-                let cell_y = y * CELL_H;
+                let cell_x = (x * CELL_W) as u32;
+                let cell_y = (y * CELL_H) as u32;
 
                 // Todo optimise this portion. When using test_image_2, ~30ms is used for looping. Another ~10ms is used for creating the cells
                 #[rustfmt::skip]
@@ -86,7 +86,7 @@ impl From<&image::Rgba32FImage> for CellGrid {
             }
         }
         let cells: Vec<CellPixels> = bytemuck::cast_vec(cells_arrays);
-        let height: u32 = cells.len() as u32 / cols;
+        let height = cells.len() / cols;
         Self {
             cells,
             width: cols,
@@ -180,8 +180,8 @@ pub struct ComputedCell {
 
 pub struct ComputedCellGrid {
     pub cells: Vec<ComputedCell>,
-    width: u32,
-    height: u32,
+    width: usize,
+    height: usize,
 }
 
 impl CellGrid {
@@ -245,7 +245,6 @@ impl ComputedCellGrid {
             } else {
                 characters[index as usize]
                 // '?'
-                
             };
 
             if colored {
@@ -253,15 +252,11 @@ impl ComputedCellGrid {
                 // print!("{:?}",cell.fore);
                 let back = ansi::convert(cell.back, true);
                 s.push_str(&fore.on(back).paint(char_.to_string()).to_string())
-
-            }
-            else{
-
+            } else {
                 s.push(char_);
-    
             };
-            
-            if (i+1) % (self.width()) as usize == 0 {
+
+            if (i + 1) % (self.width()) as usize == 0 {
                 s.push_str("\n");
             }
         }
@@ -276,10 +271,10 @@ impl ComputedCellGrid {
         )
     }
 
-    pub fn width(&self) -> u32 {
+    pub fn width(&self) -> usize {
         self.width
     }
-    pub fn height(&self) -> u32 {
+    pub fn height(&self) -> usize {
         self.height
     }
 }

@@ -1,6 +1,13 @@
-use std::process::{exit, ExitCode};
+use std::{
+    fs,
+    process::{exit, ExitCode},
+};
 
 use argh::FromArgs;
+use clir_rs::{
+    cell::{self, CellGrid, CELL_W},
+    color::Color,
+};
 use image::{io::Reader as ImageReader, DynamicImage};
 
 #[derive(FromArgs, Debug)]
@@ -59,11 +66,11 @@ enum RenderMode {
 }
 
 struct RenderSettings {
-    height: u32,
-    width: u32,
+    im_height: u32,
+    im_width: u32,
     render_mode: RenderMode,
     output: Option<String>,
-    img: DynamicImage
+    src: DynamicImage,
 }
 
 #[derive(Debug)]
@@ -73,6 +80,19 @@ enum RenderSettingsFromArgsErrs {
 }
 
 impl RenderSettings {
+    // Reduces width o height to match the aspect ratio
+    pub fn keep_aspect(width: usize, height: usize, aspect: f32) -> (usize, usize){
+        
+        let new_width = (height as f32 * aspect).floor();
+        let new_height = (width as f32 / aspect).floor();
+        if new_height < (height as f32){
+            (width as usize, new_height as usize)
+        }
+        else{
+            (new_width as usize, height)
+        }
+    }
+
     pub fn scale_aspect(width: usize, aspect: f32) -> usize {
         let rounded: u32 = (width as f32 / aspect).round() as u32;
         rounded as usize
@@ -80,7 +100,7 @@ impl RenderSettings {
 
     pub fn autodetected_size(aspect: f32) -> (usize, usize) {
         match termsize::get() {
-            Some(size) => (size.cols as usize, size.rows as usize),
+            Some(size) => Self::keep_aspect(size.cols as usize, size.rows as usize, aspect),
             None => (DEFAULT_WIDTH, Self::scale_aspect(DEFAULT_WIDTH, aspect)),
         }
     }
@@ -101,14 +121,14 @@ impl RenderSettings {
         } else {
             let suggested_size = Self::autodetected_size(aspect);
             (
-                args.width.unwrap_or(suggested_size.0),
-                args.height.unwrap_or(suggested_size.1),
+                args.width.unwrap_or(suggested_size.0) * cell::CELL_W,
+                args.height.unwrap_or(suggested_size.1) * cell::CELL_H,
             )
         };
 
         Ok(Self {
-            height: output_size.1 as u32,
-            width: output_size.0 as u32,
+            im_height: output_size.1 as u32,
+            im_width: output_size.0 as u32,
             render_mode: if args.plain_text {
                 RenderMode::PlainText
             } else if args.no_color {
@@ -117,24 +137,81 @@ impl RenderSettings {
                 RenderMode::Color
             },
             output: args.output.clone(),
-            img
+            src: img,
         })
     }
 }
 
 fn main() -> ExitCode {
+    let before_cmd =Instant::now();
     let args: CliArgs = argh::from_env();
 
-    if args.debug{
+    if args.debug {
         println!("Runnning with arguments: {:#?}", args);
     }
-    let settings = match RenderSettings::from_args(&args) {
+    let config = match RenderSettings::from_args(&args) {
         Ok(x) => x,
         Err(err) => {
             eprintln!("Fatal error: {:#?}", err);
             return ExitCode::FAILURE;
-        },
+        }
     };
 
+    if args.debug {
+        println!(
+            "Resizing source image to {}x{}...",
+            config.im_width, config.im_height
+        );
+    }
+    let img = config.src.resize(
+        config.im_width,
+        config.im_height,
+        image::imageops::FilterType::Triangle,
+    );
+
+    use std::time::Instant;
+
+    let before_cell = Instant::now();
+    let mut cells = CellGrid::from(&img.clone().into());
+    let cell_time = before_cell.elapsed();
+
+    let before_round = Instant::now();
+    let computed = match config.render_mode {
+        RenderMode::Color => cells.to_computed(),
+        RenderMode::NoColor => cells.to_computed(),
+        RenderMode::PlainText => cells.to_computed_ab( &Color::WHITE, &Color::TRANSPARENT),
+    };
+    let round_cell_time = before_round.elapsed();
+
+    let before_string = Instant::now();
+    let (s, _) = computed.to_string(true, None);
+    let string_time = before_string.elapsed();
+
+    if args.debug {
+        fs::create_dir("./clir_rs_debug/");
+        cells.save_as("./clir_rs_debug/colored_cells.png").unwrap();
+        cell::round_cells_with_ab(&mut cells.cells, &Color::WHITE, &Color::TRANSPARENT);
+        cells.save_as("./clir_rs_debug/bw_cells.png").unwrap();
+    }
+
+    println!("{}", s);
+    println!(
+        "Source Image Size ({}x{}={}) | Final Image size ({}x{}={}) | Cells count: {} ({}x{}={})",
+        config.src.width(),
+        config.src.height(),
+        config.src.width()*config.src.height(),
+        img.width(),
+        img.height(),
+        img.width()*img.height(),
+        cells.len(),
+        cells.width(),
+        cells.height(),
+        cells.width()*cells.height()
+    );
+    println!(
+        "Cell Generate Time: {:.2?} | Round Cell Pixels time: {:.2?} | String time: {:.2?} | Total compute time {:.2?}",
+        cell_time, round_cell_time, string_time, round_cell_time + string_time + cell_time
+    );
+    print!("Command completed in: {:.2?}", before_cmd.elapsed());
     ExitCode::SUCCESS
 }
