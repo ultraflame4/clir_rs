@@ -7,10 +7,23 @@ pub const BRAILLE: &str = concat!(
     "⢾⢿⣀⣁⣂⣃⣄⣅⣆⣇⣈⣉⣊⣋⣌⣍⣎⣏⣐⣑⣒⣓⣔⣕⣖⣗⣘⣙⣚⣛⣜⣝⣞⣟⣠⣡⣢⣣⣤⣥⣦⣧⣨⣩⣪⣫⣬⣭⣮⣯⣰⣱⣲⣳⣴⣵⣶⣷⣸⣹⣺⣻⣼⣽⣾⣿"
 );
 
+pub const CLASSIC: &str = concat!(
+    " ⠁⠂▘⠄⠅⠆⠇⠈▔⠊⠋⠌⠍⠎⠏⠐⠑⠒⠓⠔⠕⠖⠗▝⠙⠚▀⠜⠝⠞⠟⠠⠡⠢⠣⠤⠥⠦⠧⠨⠩⠪⠫⠬⠭⠮⠯⠰⠱⠲⠳⠴⠵⠶⠷⠸⠹⠺⠻⠼⠽⠾⠿",
+    "⡀⡁⡂⡃▖⡅⡆▌⡈⡉⡊⡋⡌⡍⡎⡏⡐⡑⡒⡓⡔⡕⡖⡗⡘⡙⡚⡛▞⡝⡞▛⡠⡡⡢⡣⡤⡥⡦⡧⡨⡩⡪⡫⡬⡭⡮⡯⡰⡱⡲⡳⡴⡵⡶⡷⡸⡹⡺⡻⡼⡽⡾⡿⢀⢁⢂⢃⢄⢅⢆⢇⢈⢉⢊⢋⢌⢍⢎⢏⢐⢑⢒",
+    "⢓⢔⢕⢖⢗⢘⢙⢚⢛⢜⢝⢞⢟▗⢡⢢▚⢤⢥⢦⢧⢨⢩⢪⢫⢬⢭⢮⢯⢰⢱⢲⢳⢴⢵⢶⢷▐⢹⢺▜⢼⢽⢾⢿▂⣁⣂⣃⣄⣅⣆⣇⣈⣉⣊⣋⣌⣍⣎⣏⣐⣑⣒⣓⣔⣕⣖⣗⣘⣙⣚⣛⣜⣝⣞⣟⣠⣡⣢⣣▃⣥",
+    "⣦▙⣨⣩⣪⣫⣬⣭⣮⣯⣰⣱⣲⣳⣴⣵▅⣷⣸⣹⣺⣻▟⣽⣾█"
+);
 
-pub enum CharsetWarnings{
+pub fn get_charset(name: &str)->&'static str{
+    match name {
+        "classic" => CLASSIC,
+        _ => &BRAILLE
+    }
+}
+
+pub enum CharsetWarnings {
     None,
-    NotEnoughCharacters
+    NotEnoughCharacters,
 }
 
 /// Converts a cell bitmask to the proper index for indexing the various char sets. \
@@ -21,7 +34,7 @@ pub enum CharsetWarnings{
 ///
 /// See https://en.wikipedia.org/wiki/Braille_Patterns#/media/File:Braille8dotCellNumbering.svg
 pub fn cell_bitmask_to_char_index(bitmask_: u8) -> u8 {
-    let bitmask : u8= bitmask_;
+    let bitmask: u8 = bitmask_;
     let mut result = 0;
 
     // Keep only the last & first 3 bits so we can work on position 5-2
@@ -31,16 +44,13 @@ pub fn cell_bitmask_to_char_index(bitmask_: u8) -> u8 {
     // Isolate the 5th bit, & move it to the right by 2. And then add to the result
     (bitmask & 0b00010000) >> 2;
 
-
     result |=
     // Isolate the 4th bit, & move it to the left by 1. And then add to the result
     (bitmask & 0b00001000) << 1;
 
-
     result |=
     // Isolate the 3rd bit, & move it to the right by 1. And then add to the result
     (bitmask & 0b00000100) >> 1;
-
 
     result |=
     // Isolate the 2nd bit, & move it to the left by 2. And then add to the result

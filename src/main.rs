@@ -6,6 +6,7 @@ use std::{
 use argh::FromArgs;
 use clir_rs::{
     cell::{self, CellGrid, CELL_H, CELL_W},
+    charsets,
     color::Color,
 };
 use image::{io::Reader as ImageReader, DynamicImage};
@@ -23,7 +24,7 @@ struct CliArgs {
 
     /// disables automatic resizing of output size to fit the terminal if available. Using --width or --height will override the detected values.
     ///
-    /// When not available or disabled, autosize sets width to 100, height is derived from aspect ratio . If --no_keep_aspect is set, height will be set to 100
+    /// When not available or disabled, autosize sets width to 100, height is derived from aspect ratio . If --no_keep_aspect is set, height will be set to 25
     #[argh(switch)]
     no_autosize: bool,
 
@@ -54,10 +55,14 @@ struct CliArgs {
     /// overrides all size options. Uses the orginal image's size. Calculation is (image.width / CELL_W, image.height / CELL_H) Where CELL_W & CELL_H is typically 2 & 4 respectively.
     #[argh(switch)]
     use_original_image_size: bool,
+
+    /// overrides all size options. Uses the orginal image's size. Calculation is (image.width / CELL_W, image.height / CELL_H) Where CELL_W & CELL_H is typically 2 & 4 respectively.
+    #[argh(option)]
+    charset: Option<String>,
 }
 
 const DEFAULT_WIDTH: usize = 100;
-const DEFAULT_HEIGHT: usize = 100;
+const DEFAULT_HEIGHT: usize = 25;
 
 enum RenderMode {
     Color,
@@ -81,16 +86,14 @@ enum RenderSettingsFromArgsErrs {
 
 impl RenderSettings {
     // Reduces width o height to match the aspect ratio
-    pub fn keep_aspect(width: usize, height: usize, aspect: f32) -> (usize, usize){
-        
+    pub fn keep_aspect(width: usize, height: usize, aspect: f32) -> (usize, usize) {
         let width_ = CELL_W * width;
         let height_ = CELL_H * height;
         let new_width = (height_ as f32 * aspect / CELL_W as f32).floor();
         let new_height = (width_ as f32 / aspect / CELL_H as f32).floor();
-        if new_height < (height as f32){
+        if new_height < (height as f32) {
             (width as usize, new_height as usize)
-        }
-        else{
+        } else {
             (new_width as usize, height)
         }
     }
@@ -100,10 +103,10 @@ impl RenderSettings {
         rounded as usize
     }
 
-    pub fn autodetected_size(aspect: f32) -> (usize, usize) {
+    pub fn autodetected_size() -> (usize, usize) {
         match termsize::get() {
-            Some(size) => Self::keep_aspect(size.cols as usize, size.rows as usize, aspect),
-            None => (DEFAULT_WIDTH, Self::scale_aspect(DEFAULT_WIDTH, aspect)),
+            Some(size) => (size.cols as usize, size.rows as usize),
+            None => (DEFAULT_WIDTH, DEFAULT_HEIGHT),
         }
     }
 
@@ -121,7 +124,16 @@ impl RenderSettings {
         let output_size = if args.use_original_image_size {
             (img.width() as usize, img.height() as usize)
         } else {
-            let suggested_size = Self::autodetected_size(aspect);
+            let (dw, dh) = if args.no_autosize {
+                (DEFAULT_WIDTH, DEFAULT_HEIGHT)
+            } else {
+                Self::autodetected_size()
+            };
+            let suggested_size = if args.no_keep_aspect {
+                (dw, dh)
+            } else {
+                Self::keep_aspect(dw, dh, aspect)
+            };
             (
                 args.width.unwrap_or(suggested_size.0) * cell::CELL_W,
                 args.height.unwrap_or(suggested_size.1) * cell::CELL_H,
@@ -145,7 +157,7 @@ impl RenderSettings {
 }
 
 fn main() -> ExitCode {
-    let before_cmd =Instant::now();
+    let before_cmd = Instant::now();
     let args: CliArgs = argh::from_env();
 
     if args.debug {
@@ -178,15 +190,19 @@ fn main() -> ExitCode {
     let cell_time = before_cell.elapsed();
 
     let before_round = Instant::now();
+    let mut colored = false;
     let computed = match config.render_mode {
-        RenderMode::Color => cells.to_computed(),
+        RenderMode::Color => {
+            colored = true;
+            cells.to_computed()
+        }
         RenderMode::NoColor => cells.to_computed(),
-        RenderMode::PlainText => cells.to_computed_ab( &Color::WHITE, &Color::TRANSPARENT),
+        RenderMode::PlainText => cells.to_computed_ab(&Color::WHITE, &Color::TRANSPARENT),
     };
     let round_cell_time = before_round.elapsed();
 
     let before_string = Instant::now();
-    let (s, _) = computed.to_string(true, None);
+    let (s, _) = computed.to_string(colored, Some(charsets::CLASSIC));
     let string_time = before_string.elapsed();
 
     if args.debug {
@@ -201,14 +217,14 @@ fn main() -> ExitCode {
         "Source Image Size ({}x{}={}) | Final Image size ({}x{}={}) | Cells count: {} ({}x{}={})",
         config.src.width(),
         config.src.height(),
-        config.src.width()*config.src.height(),
+        config.src.width() * config.src.height(),
         img.width(),
         img.height(),
-        img.width()*img.height(),
+        img.width() * img.height(),
         cells.len(),
         cells.width(),
         cells.height(),
-        cells.width()*cells.height()
+        cells.width() * cells.height()
     );
     println!(
         "Cell Generate Time: {:.2?} | Round Cell Pixels time: {:.2?} | String time: {:.2?} | Total compute time {:.2?}",
