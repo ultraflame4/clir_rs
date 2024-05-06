@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 ansi_colours = "1.2.2"
 ansi_term = "0.12.1"
+argh = "0.1.12"
 bytemuck = "1.15.0"
 cgmath = "0.18.0"
 image = "0.25.1"
