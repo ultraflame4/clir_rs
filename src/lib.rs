@@ -24,6 +24,13 @@ pub mod utils{
                 exit(-1)
             },
         }
-        
+    }
+
+    pub fn get_scaling(name: &str) -> image::imageops::FilterType{
+        match name {
+            "nearest" => image::imageops::FilterType::Nearest,
+            "gaussian" => image::imageops::FilterType::Gaussian,
+            _ => image::imageops::FilterType::Triangle
+        }
     }
 }

@@ -63,9 +63,13 @@ struct CliArgs {
     #[argh(switch)]
     no_print: bool,
 
-    /// specifies the character set to use. Valid options are ["braille", "classic"]. Defaults to classic not available [default: "classic"]
+    /// specifies the character set to use. Valid options are ["braille", "classic"]. Uses default for unknown values [default: "classic"]
     #[argh(option)]
     charset: Option<String>,
+
+    /// sets the method use to scale the image. Valid options are ["nearest","linear","gaussian"]. Uses default for unknown values  [default: "linear"]
+    #[argh(option)]
+    scaling: Option<String>,
 }
 
 const DEFAULT_WIDTH: usize = 100;
@@ -208,7 +212,7 @@ fn main() -> ExitCode {
     let img = config.src.resize_exact(
         config.im_width,
         config.im_height,
-        image::imageops::FilterType::Triangle,
+        utils::get_scaling(&args.scaling.unwrap_or("".to_owned())),
     );
 
     use std::time::Instant;
