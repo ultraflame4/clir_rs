@@ -89,11 +89,6 @@ struct RenderSettings {
     src: DynamicImage,
 }
 
-#[derive(Debug)]
-enum RenderSettingsFromArgsErrs {
-    DecodeError(image::ImageError),
-    IoError(std::io::Error),
-}
 
 impl RenderSettings {
     // Reduces width or height to match the aspect ratio
@@ -119,7 +114,7 @@ impl RenderSettings {
     pub fn from_args(
         args: &CliArgs,
         img: DynamicImage,
-    ) -> Result<Self, RenderSettingsFromArgsErrs> {
+    ) -> Self {
         let aspect = img.width() as f32 / img.height() as f32;
 
         let output_size = if args.use_original_image_size {
@@ -142,7 +137,7 @@ impl RenderSettings {
             (fw * CELL_W, fh * CELL_H)
         };
 
-        Ok(Self {
+        Self {
             im_height: output_size.1 as u32,
             im_width: output_size.0 as u32,
             render_mode: if args.plain_text {
@@ -154,7 +149,7 @@ impl RenderSettings {
             },
             output: args.output.clone(),
             src: img,
-        })
+        }
     }
 }
 
@@ -195,13 +190,7 @@ fn main() -> ExitCode {
         }
     };
 
-    let config = match RenderSettings::from_args(&args, img) {
-        Ok(x) => x,
-        Err(err) => {
-            eprintln!("Fatal error: {:#?}", err);
-            return ExitCode::FAILURE;
-        }
-    };
+    let config = RenderSettings::from_args(&args, img);
 
     if args.debug {
         println!(
