@@ -89,15 +89,19 @@ struct RenderSettings {
     src: DynamicImage,
 }
 
-
 impl RenderSettings {
     // Reduces width or height to match the aspect ratio
-    pub fn keep_aspect(width: usize, height: usize, aspect: f32) -> (usize, usize) {
+    pub fn keep_aspect(
+        width: usize,
+        height: usize,
+        aspect: f32,
+        use_width: Option<bool>,
+    ) -> (usize, usize) {
         let width_ = CELL_W * width;
         let height_ = CELL_H * height;
         let new_width = (height_ as f32 * aspect / CELL_W as f32).floor();
         let new_height = (width_ as f32 / aspect / CELL_H as f32).floor();
-        if new_height < (height as f32) {
+        if use_width.unwrap_or(new_height < (height as f32)) {
             (width as usize, new_height as usize)
         } else {
             (new_width as usize, height)
@@ -111,10 +115,7 @@ impl RenderSettings {
         }
     }
 
-    pub fn from_args(
-        args: &CliArgs,
-        img: DynamicImage,
-    ) -> Self {
+    pub fn from_args(args: &CliArgs, img: DynamicImage) -> Self {
         let aspect = img.width() as f32 / img.height() as f32;
 
         let output_size = if args.use_original_image_size {
@@ -128,10 +129,19 @@ impl RenderSettings {
 
             let unwrapped_size = (args.width.unwrap_or(dw), args.height.unwrap_or(dh));
 
-            let (fw, fh) = if args.no_keep_aspect || (args.width.is_some() && args.height.is_some()) {
+            let (fw, fh) = if args.no_keep_aspect || (args.width.is_some() && args.height.is_some())
+            {
                 unwrapped_size
             } else {
-                Self::keep_aspect(unwrapped_size.0, unwrapped_size.1, aspect)
+                // When use_width is true, it will always scale the height instead.
+                // Hence by using width.is_some(), when -w, it will scale height, 
+                // when -h, it will scale width. -w & -h should never happen because it is checked in the previous if condition
+                Self::keep_aspect(
+                    unwrapped_size.0,
+                    unwrapped_size.1,
+                    aspect,
+                    Some(args.width.is_some()),
+                )
             };
 
             (fw * CELL_W, fh * CELL_H)
