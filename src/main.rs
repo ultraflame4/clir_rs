@@ -1,6 +1,6 @@
 use std::{
     fs,
-    process::{exit, ExitCode},
+    process::ExitCode,
 };
 
 use argh::FromArgs;
@@ -56,7 +56,7 @@ struct CliArgs {
     #[argh(switch)]
     use_original_image_size: bool,
 
-    /// overrides all size options. Uses the orginal image's size. Calculation is (image.width / CELL_W, image.height / CELL_H) Where CELL_W & CELL_H is typically 2 & 4 respectively.
+    /// specifies the character set to use. Valid options are ["braille", "classic"]. Defaults to classic not available [default: "classic"]
     #[argh(option)]
     charset: Option<String>,
 }
@@ -96,11 +96,6 @@ impl RenderSettings {
         } else {
             (new_width as usize, height)
         }
-    }
-
-    pub fn scale_aspect(width: usize, aspect: f32) -> usize {
-        let rounded: u32 = (width as f32 / aspect).round() as u32;
-        rounded as usize
     }
 
     pub fn autodetected_size() -> (usize, usize) {
@@ -202,11 +197,14 @@ fn main() -> ExitCode {
     let round_cell_time = before_round.elapsed();
 
     let before_string = Instant::now();
-    let (s, _) = computed.to_string(colored, Some(charsets::CLASSIC));
+    let (s, _) = computed.to_string(colored, Some(charsets::get_charset(&args.charset.unwrap_or("".to_string()))));
     let string_time = before_string.elapsed();
 
     if args.debug {
-        fs::create_dir("./clir_rs_debug/");
+        match fs::create_dir("./clir_rs_debug/") {
+            Ok(_) => {},
+            Err(e) => eprintln!("Fatal err, failed to create debug output dir {:?}",e),
+        };
         cells.save_as("./clir_rs_debug/colored_cells.png").unwrap();
         cell::round_cells_with_ab(&mut cells.cells, &Color::WHITE, &Color::TRANSPARENT);
         cells.save_as("./clir_rs_debug/bw_cells.png").unwrap();

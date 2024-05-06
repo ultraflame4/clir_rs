@@ -1,4 +1,3 @@
-use std::str::Chars;
 
 pub const BRAILLE: &str = concat!(
     " ⠁⠂⠃⠄⠅⠆⠇⠈⠉⠊⠋⠌⠍⠎⠏⠐⠑⠒⠓⠔⠕⠖⠗⠘⠙⠚⠛⠜⠝⠞⠟⠠⠡⠢⠣⠤⠥⠦⠧⠨⠩⠪⠫⠬⠭⠮⠯⠰⠱⠲⠳⠴⠵⠶⠷⠸⠹⠺⠻⠼⠽⠾⠿",
@@ -16,8 +15,8 @@ pub const CLASSIC: &str = concat!(
 
 pub fn get_charset(name: &str)->&'static str{
     match name {
-        "classic" => CLASSIC,
-        _ => &BRAILLE
+        "braille" => BRAILLE,
+        _ => CLASSIC,
     }
 }
 
