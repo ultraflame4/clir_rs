@@ -7,7 +7,9 @@ This program can be installed with `cargo install` \
 
 ## Usage
 ```
-Usage: clir_rs.exe <source> [--output <output>] [--no-autosize] [-w <width>] [-h <height>] [--no-keep-aspect] [--no-color] [--plain-text] [--debug] [--use-original-image-size] [--charset <charset>]
+Usage: clir_rs.exe <source> [--output <output>] [--no-autosize] [-w <width>] [-h <height>]
+       [--no-keep-aspect] [--no-color] [--plain-text] [--debug] [--use-original-image-size]
+       [--charset <charset>]
 
 Renders an image to the console as unicode art
 
