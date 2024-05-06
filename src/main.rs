@@ -1,7 +1,7 @@
 use std::process::{exit, ExitCode};
 
 use argh::FromArgs;
-use image::io::Reader as ImageReader;
+use image::{io::Reader as ImageReader, DynamicImage};
 
 #[derive(FromArgs, Debug)]
 /// Renders an image to the console as unicode art
@@ -63,6 +63,7 @@ struct RenderSettings {
     width: u32,
     render_mode: RenderMode,
     output: Option<String>,
+    img: DynamicImage
 }
 
 #[derive(Debug)]
@@ -116,6 +117,7 @@ impl RenderSettings {
                 RenderMode::Color
             },
             output: args.output.clone(),
+            img
         })
     }
 }
