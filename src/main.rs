@@ -17,7 +17,7 @@ use is_url::is_url;
 #[derive(FromArgs, Debug)]
 /// Renders an image to the console as unicode art
 struct CliArgs {
-    /// path to the source image
+    /// filepath or url to the source image. Note that not all urls might work, it is recommended to download the image separately as an png first.
     #[argh(positional)]
     source: String,
 
