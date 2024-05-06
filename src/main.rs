@@ -1,5 +1,7 @@
 use std::{
-    fs::{self, File}, io::Write, process::ExitCode
+    fs::{self, File},
+    io::Write,
+    process::ExitCode,
 };
 
 use argh::FromArgs;
@@ -7,6 +9,7 @@ use clir_rs::{
     cell::{self, CellGrid, CELL_H, CELL_W},
     charsets,
     color::Color,
+    utils,
 };
 use image::{io::Reader as ImageReader, DynamicImage};
 
@@ -109,7 +112,15 @@ impl RenderSettings {
     }
 
     pub fn from_args(args: &CliArgs) -> Result<Self, RenderSettingsFromArgsErrs> {
-        let img = match ImageReader::open(&args.source) {
+        if args.debug {
+            println!("Expanding source image '{:?}'", &args.source)
+        }
+        let expanded = utils::expand_path(&args.source);
+        if args.debug {
+            println!("Reading image from '{:?}'", expanded)
+        }
+
+        let img = match ImageReader::open(expanded) {
             Ok(img_data) => match img_data.decode() {
                 Ok(x) => x,
                 Err(e) => return Err(RenderSettingsFromArgsErrs::DecodeError(e)),
@@ -220,32 +231,49 @@ fn main() -> ExitCode {
     if !args.no_print {
         println!("{}", s);
     }
-    println!(
-        "Source Image Size ({}x{}={}) | Final Image size ({}x{}={}) | Cells count: {} ({}x{}={})",
-        config.src.width(),
-        config.src.height(),
-        config.src.width() * config.src.height(),
-        img.width(),
-        img.height(),
-        img.width() * img.height(),
-        cells.len(),
-        cells.width(),
-        cells.height(),
-        cells.width() * cells.height()
-    );
-    println!(
-        "Cell Generate Time: {:.2?} | Round Cell Pixels time: {:.2?} | String time: {:.2?} | Total compute time {:.2?}",
-        cell_time, round_cell_time, string_time, round_cell_time + string_time + cell_time
-    );
+
+    if args.debug {
+        println!(
+            "Source Image Size ({}x{}={}) | Final Image size ({}x{}={}) | Cells count: {} ({}x{}={})",
+            config.src.width(),
+            config.src.height(),
+            config.src.width() * config.src.height(),
+            img.width(),
+            img.height(),
+            img.width() * img.height(),
+            cells.len(),
+            cells.width(),
+            cells.height(),
+            cells.width() * cells.height()
+        );
+        println!(
+            "Cell Generate Time: {:.2?} | Round Cell Pixels time: {:.2?} | String time: {:.2?} | Total compute time {:.2?}",
+            cell_time, round_cell_time, string_time, round_cell_time + string_time + cell_time
+        );
+    }
 
     match args.output {
-        Some(path) => match File::create(path.clone()) {
-            Ok(mut file) => match file.write_all(s.as_bytes()) {
-                Ok(_) => (),
-                Err(e) => eprintln!("Failed to write output to path at '{:?}' due to {:?}", path, e),
-            },
-            Err(e) => eprintln!("Failed to write output to path at '{:?}' due to {:?}", path, e),
-        },
+        Some(path) => {
+            let expanded = utils::expand_path(&path);
+            match File::create(&expanded) {
+                Ok(mut file) => match file.write_all(s.as_bytes()) {
+                    Ok(_) => {
+                        if args.debug {
+                            println!("Wrote output to {:?}", utils::expand_path(&expanded))
+                        }
+                    }
+
+                    Err(e) => eprintln!(
+                        "Failed to write output to path at '{:?}' due to {:?}",
+                        path, e
+                    ),
+                },
+                Err(e) => eprintln!(
+                    "Failed to write output to path at '{:?}' due to {:?}",
+                    path, e
+                ),
+            }
+        }
         None => (),
     }
 
