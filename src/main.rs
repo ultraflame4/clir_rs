@@ -56,7 +56,7 @@ struct CliArgs {
     #[argh(switch)]
     use_original_image_size: bool,
 
-    /// overrides all size options. Uses the orginal image's size. Calculation is (image.width / CELL_W, image.height / CELL_H) Where CELL_W & CELL_H is typically 2 & 4 respectively.
+    /// specifies the character set to use. Valid options are ["braille", "classic"]. Defaults to classic not available [default: "classic"]
     #[argh(option)]
     charset: Option<String>,
 }
@@ -197,7 +197,7 @@ fn main() -> ExitCode {
     let round_cell_time = before_round.elapsed();
 
     let before_string = Instant::now();
-    let (s, _) = computed.to_string(colored, Some(charsets::CLASSIC));
+    let (s, _) = computed.to_string(colored, Some(charsets::get_charset(&args.charset.unwrap_or("".to_string()))));
     let string_time = before_string.elapsed();
 
     if args.debug {
