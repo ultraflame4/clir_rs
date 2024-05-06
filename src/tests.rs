@@ -149,12 +149,12 @@ fn print_colored_test() {
     let string_time = before_string.elapsed();
 
     fs::create_dir("./test-outputs/");
-    cell::round_cells_with_ab(&mut cells.cells, &Color::WHITE, &Color::TRANSPARENT);
     cells
-        .save_as("./test-outputs/bw_print_rounded_cells.png")
+        .save_as("./test-outputs/print_colored_cells.png")
         .unwrap();
 
     println!("{}", s);
-    println!("Image size ({}x{}) | Cells count: {} | Cell Generate Time: {:.2?} | Round Cell Pixels time: {:.2?} | String time: {:.2?}",
-             img.width(), img.height(), cells.len(), cell_generation_time, round_cell_time, string_time);
+    println!("Image size ({}x{}) | Cells count: {} ({}x{})", img.width(), img.height(), cells.len(), cells.width(),cells.height());
+    println!("Cell Generate Time: {:.2?} | Round Cell Pixels time: {:.2?} | String time: {:.2?}",
+              cell_generation_time, round_cell_time, string_time);
 }

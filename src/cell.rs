@@ -243,7 +243,9 @@ impl ComputedCellGrid {
                 missing_char = true;
                 '?'
             } else {
-                characters[index as usize]
+                characters[index as usize];
+                '?'
+                
             };
 
             if colored {
