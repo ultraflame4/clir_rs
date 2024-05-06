@@ -1,5 +1,7 @@
 use std::{
-    fs::{self, File}, io::Write, process::ExitCode
+    fs::{self, File},
+    io::Write,
+    process::ExitCode,
 };
 
 use argh::FromArgs;
@@ -7,13 +9,15 @@ use clir_rs::{
     cell::{self, CellGrid, CELL_H, CELL_W},
     charsets,
     color::Color,
+    utils,
 };
 use image::{io::Reader as ImageReader, DynamicImage};
+use is_url::is_url;
 
 #[derive(FromArgs, Debug)]
 /// Renders an image to the console as unicode art
 struct CliArgs {
-    /// path to the source image
+    /// filepath or url to the source image. Note that not all urls might work, it is recommended to download the image separately as an png first.
     #[argh(positional)]
     source: String,
 
@@ -108,15 +112,10 @@ impl RenderSettings {
         }
     }
 
-    pub fn from_args(args: &CliArgs) -> Result<Self, RenderSettingsFromArgsErrs> {
-        let img = match ImageReader::open(&args.source) {
-            Ok(img_data) => match img_data.decode() {
-                Ok(x) => x,
-                Err(e) => return Err(RenderSettingsFromArgsErrs::DecodeError(e)),
-            },
-            Err(e) => return Err(RenderSettingsFromArgsErrs::IoError(e)),
-        };
-
+    pub fn from_args(
+        args: &CliArgs,
+        img: DynamicImage,
+    ) -> Result<Self, RenderSettingsFromArgsErrs> {
         let aspect = img.width() as f32 / img.height() as f32;
 
         let output_size = if args.use_original_image_size {
@@ -154,14 +153,44 @@ impl RenderSettings {
     }
 }
 
+fn read_image(path: &str, debug: bool) -> anyhow::Result<DynamicImage> {
+    anyhow::Ok(if is_url(&path) {
+        if debug {
+            println!("Requesting image from url '{:?}'", path);
+        }
+        let res = reqwest::blocking::get(path)?;
+        if debug {
+            println!("Response '{:#?}'", res);
+        }
+        let bytes = res.bytes()?;
+        image::load_from_memory(&bytes)?
+    } else {
+        if debug {
+            println!("Expanding source image '{:?}'", &path);
+        }
+        let expanded = utils::expand_path(&path);
+        println!("Reading image from '{:?}'", expanded);
+        ImageReader::open(expanded)?.decode()?
+    })
+}
+
 fn main() -> ExitCode {
     let before_cmd = Instant::now();
     let args: CliArgs = argh::from_env();
 
     if args.debug {
-        println!("Runnning with arguments: {:#?}", args);
+        println!("Running with arguments: {:#?}", args);
     }
-    let config = match RenderSettings::from_args(&args) {
+
+    let img = match read_image(&args.source, args.debug) {
+        Ok(x) => x,
+        Err(e) => {
+            eprintln!("Fatal error while trying to read image: {:#?}", e);
+            return ExitCode::FAILURE;
+        }
+    };
+
+    let config = match RenderSettings::from_args(&args, img) {
         Ok(x) => x,
         Err(err) => {
             eprintln!("Fatal error: {:#?}", err);
@@ -211,7 +240,7 @@ fn main() -> ExitCode {
     if args.debug {
         match fs::create_dir("./clir_rs_debug/") {
             Ok(_) => {}
-            Err(e) => eprintln!("Fatal err, failed to create debug output dir {:?}", e),
+            Err(e) => eprintln!("Warning: failed to create debug output dir {:?}", e),
         };
         cells.save_as("./clir_rs_debug/colored_cells.png").unwrap();
         cell::round_cells_with_ab(&mut cells.cells, &Color::WHITE, &Color::TRANSPARENT);
@@ -220,32 +249,49 @@ fn main() -> ExitCode {
     if !args.no_print {
         println!("{}", s);
     }
-    println!(
-        "Source Image Size ({}x{}={}) | Final Image size ({}x{}={}) | Cells count: {} ({}x{}={})",
-        config.src.width(),
-        config.src.height(),
-        config.src.width() * config.src.height(),
-        img.width(),
-        img.height(),
-        img.width() * img.height(),
-        cells.len(),
-        cells.width(),
-        cells.height(),
-        cells.width() * cells.height()
-    );
-    println!(
-        "Cell Generate Time: {:.2?} | Round Cell Pixels time: {:.2?} | String time: {:.2?} | Total compute time {:.2?}",
-        cell_time, round_cell_time, string_time, round_cell_time + string_time + cell_time
-    );
+
+    if args.debug {
+        println!(
+            "Source Image Size ({}x{}={}) | Final Image size ({}x{}={}) | Cells count: {} ({}x{}={})",
+            config.src.width(),
+            config.src.height(),
+            config.src.width() * config.src.height(),
+            img.width(),
+            img.height(),
+            img.width() * img.height(),
+            cells.len(),
+            cells.width(),
+            cells.height(),
+            cells.width() * cells.height()
+        );
+        println!(
+            "Cell Generate Time: {:.2?} | Round Cell Pixels time: {:.2?} | String time: {:.2?} | Total compute time {:.2?}",
+            cell_time, round_cell_time, string_time, round_cell_time + string_time + cell_time
+        );
+    }
 
     match args.output {
-        Some(path) => match File::create(path.clone()) {
-            Ok(mut file) => match file.write_all(s.as_bytes()) {
-                Ok(_) => (),
-                Err(e) => eprintln!("Failed to write output to path at '{:?}' due to {:?}", path, e),
-            },
-            Err(e) => eprintln!("Failed to write output to path at '{:?}' due to {:?}", path, e),
-        },
+        Some(path) => {
+            let expanded = utils::expand_path(&path);
+            match File::create(&expanded) {
+                Ok(mut file) => match file.write_all(s.as_bytes()) {
+                    Ok(_) => {
+                        if args.debug {
+                            println!("Wrote output to {:?}", utils::expand_path(&expanded))
+                        }
+                    }
+
+                    Err(e) => eprintln!(
+                        "Failed to write output to path at '{:?}' due to {:?}",
+                        path, e
+                    ),
+                },
+                Err(e) => eprintln!(
+                    "Failed to write output to path at '{:?}' due to {:?}",
+                    path, e
+                ),
+            }
+        }
         None => (),
     }
 

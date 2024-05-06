@@ -1,6 +1,6 @@
 [package]
 name = "clir_rs"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 
 authors = ["ultraflame4 <ultraflame4@gmail.com>"]
@@ -13,7 +13,12 @@ readme = "README.md"
 [dependencies]
 ansi_colours = "1.2.2"
 ansi_term = "0.12.1"
+anyhow = "1.0.82"
 argh = "0.1.12"
 bytemuck = "1.15.0"
+dirs = "5.0.1"
 image = "0.25.1"
+is-url = "1.0.4"
+reqwest = {version = "0.12.4", features = ["blocking"]}
+shellexpand = "3.1.0"
 termsize = "0.1.6"
