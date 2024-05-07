@@ -70,6 +70,11 @@ struct CliArgs {
     /// sets the method use to scale the image. Valid options are ["nearest","linear","gaussian"]. Uses default for unknown values  [default: "linear"]
     #[argh(option)]
     scaling: Option<String>,
+
+    /// sets the threshold for transparency. When alpha < transparency_t, it resets the back or fore color for the character. If both fore & back is transparent, it replaces it with a space.
+    /// This effect can only be seen in terminals where the background is not black. [default: 0.9]
+    #[argh(option, short='t')]
+    transparency_t: Option<f32>
 }
 
 const DEFAULT_WIDTH: usize = 100;
@@ -238,6 +243,7 @@ fn main() -> ExitCode {
         Some(charsets::get_charset(
             &args.charset.unwrap_or("".to_string()),
         )),
+        args.transparency_t.unwrap_or(0.9)
     );
     let string_time = before_string.elapsed();
 
