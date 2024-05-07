@@ -110,7 +110,7 @@ fn print_bw_test() {
     let round_cell_time = before_round.elapsed();
 
     let before_string = Instant::now();
-    let (s, _) = computed.to_string(false, None);
+    let (s, _) = computed.to_string(false, None, 0.25);
     let string_time = before_string.elapsed();
 
     fs::create_dir("./test-outputs/");
@@ -145,7 +145,7 @@ fn print_colored_test() {
     let round_cell_time = before_round.elapsed();
 
     let before_string = Instant::now();
-    let (s, _) = computed.to_string(true, None);
+    let (s, _) = computed.to_string(true, None, 0.25);
     let string_time = before_string.elapsed();
 
     fs::create_dir("./test-outputs/");

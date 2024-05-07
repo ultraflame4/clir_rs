@@ -227,6 +227,7 @@ impl ComputedCellGrid {
         &self,
         colored: bool,
         charset: Option<&str>,
+        transparency_t: f32
     ) -> (String, charsets::CharsetWarnings) {
         let capacity = (self.cells.len() + self.height() as usize)
             * ComputedCellGrid::UTF8_BYTE_SIZE
@@ -251,7 +252,19 @@ impl ComputedCellGrid {
                 let fore = ansi::convert(cell.fore, true);
                 // print!("{:?}",cell.fore);
                 let back = ansi::convert(cell.back, true);
-                s.push_str(&fore.on(back).paint(char_.to_string()).to_string())
+
+                if cell.back.a < transparency_t {
+                    if cell.fore.a < transparency_t {
+                        s.push(characters[0]);
+                    }
+                    else{
+                        s.push_str(&fore.paint(char_.to_string()).to_string());
+                    }
+                }
+                else{
+                    s.push_str(&fore.on(back).paint(char_.to_string()).to_string());
+                }
+                
             } else {
                 s.push(char_);
             };
