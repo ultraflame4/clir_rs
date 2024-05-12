@@ -74,7 +74,11 @@ struct CliArgs {
     /// sets the threshold for transparency. When alpha < transparency_t, it resets the back or fore color for the character. If both fore & back is transparent, it replaces it with a space.
     /// This effect can only be seen in terminals where the background is not black. [default: 0.9]
     #[argh(option, short='t')]
-    transparency_t: Option<f32>
+    transparency_t: Option<f32>,
+
+    /// inverts the fore and background cell mask. Colors are also inverted (such that there is no effect on color) respectively.
+    #[argh(switch)]
+    invert_cell: bool
 }
 
 const DEFAULT_WIDTH: usize = 100;
@@ -230,10 +234,10 @@ fn main() -> ExitCode {
     let computed = match config.render_mode {
         RenderMode::Color => {
             colored = true;
-            cells.to_computed()
+            cells.to_computed(args.invert_cell)
         }
-        RenderMode::NoColor => cells.to_computed(),
-        RenderMode::PlainText => cells.to_computed_ab(&Color::WHITE, &Color::TRANSPARENT),
+        RenderMode::NoColor => cells.to_computed(args.invert_cell),
+        RenderMode::PlainText => cells.to_computed_ab(&Color::WHITE, &Color::BLACK, args.invert_cell),
     };
     let round_cell_time = before_round.elapsed();
 
