@@ -106,7 +106,7 @@ fn print_bw_test() {
 
     let before_round = Instant::now();
     // Transparent is used instead of black for bw as the alpha channel is included as part of the comparisons Hence using transparency gives better results
-    let computed = cells.to_computed_ab(&Color::WHITE, &Color::TRANSPARENT);
+    let computed = cells.to_computed_ab(&Color::WHITE, &Color::TRANSPARENT,false);
     let round_cell_time = before_round.elapsed();
 
     let before_string = Instant::now();
@@ -141,7 +141,7 @@ fn print_colored_test() {
 
     let before_round = Instant::now();
     // Transparent is used instead of black for bw as the alpha channel is included as part of the comparisons Hence using transparency gives better results
-    let computed = cells.to_computed();
+    let computed = cells.to_computed(false);
     let round_cell_time = before_round.elapsed();
 
     let before_string = Instant::now();

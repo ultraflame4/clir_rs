@@ -185,17 +185,17 @@ pub struct ComputedCellGrid {
 }
 
 impl CellGrid {
-    pub fn to_computed(&self) -> ComputedCellGrid {
-        ComputedCellGrid::create(self, None, None)
+    pub fn to_computed(&self, invert: bool) -> ComputedCellGrid {
+        ComputedCellGrid::create(self, None, None, invert)
     }
 
-    pub fn to_computed_ab(&self, a: &Color, b: &Color) -> ComputedCellGrid {
-        ComputedCellGrid::create(self, Some(a), Some(b))
+    pub fn to_computed_ab(&self, a: &Color, b: &Color, invert: bool) -> ComputedCellGrid {
+        ComputedCellGrid::create(self, Some(a), Some(b), invert)
     }
 }
 
 impl ComputedCellGrid {
-    fn create(grid: &CellGrid, fore: Option<&Color>, back: Option<&Color>) -> Self {
+    fn create(grid: &CellGrid, fore: Option<&Color>, back: Option<&Color>, invert: bool) -> Self {
         let computed_cells: Vec<ComputedCell> = grid
             .cells
             .iter()
@@ -206,10 +206,17 @@ impl ComputedCellGrid {
                     compute_minmax_contrast(x)
                 };
 
-                let (_, bitmask) = cell_flatten_ab(x, &fore_, &back_);
+                let (final_fore, final_back) = if invert{
+                    (back_, fore_)
+                }
+                else{
+                    (fore_, back_)
+                };
+
+                let (_, bitmask) = cell_flatten_ab(x, &final_fore, &final_back);
                 ComputedCell {
-                    fore: fore_,
-                    back: back_,
+                    fore: final_fore,
+                    back: final_back,
                     bitmask,
                 }
             })
