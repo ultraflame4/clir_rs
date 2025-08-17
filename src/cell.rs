@@ -173,9 +173,9 @@ pub fn round_cells_with_ab(cells: &mut Vec<CellPixels>, a: &Color, b: &Color) {
 }
 
 pub struct ComputedCell {
-    fore: Color,
-    back: Color,
-    bitmask: u8,
+    pub fore: Color,
+    pub back: Color,
+    pub bitmask: u8,
 }
 
 pub struct ComputedCellGrid {
@@ -185,16 +185,17 @@ pub struct ComputedCellGrid {
 }
 
 impl CellGrid {
-    pub fn to_computed(&self, invert: bool) -> ComputedCellGrid {
+    pub fn compute(&self, invert: bool) -> ComputedCellGrid {
         ComputedCellGrid::create(self, None, None, invert)
     }
 
-    pub fn to_computed_ab(&self, a: &Color, b: &Color, invert: bool) -> ComputedCellGrid {
+    pub fn compute_ab(&self, a: &Color, b: &Color, invert: bool) -> ComputedCellGrid {
         ComputedCellGrid::create(self, Some(a), Some(b), invert)
     }
 }
 
 impl ComputedCellGrid {
+    pub const UTF8_BYTE_SIZE: usize = 4;
     fn create(grid: &CellGrid, fore: Option<&Color>, back: Option<&Color>, invert: bool) -> Self {
         let computed_cells: Vec<ComputedCell> = grid
             .cells
@@ -206,10 +207,9 @@ impl ComputedCellGrid {
                     compute_minmax_contrast(x)
                 };
 
-                let (final_fore, final_back) = if invert{
+                let (final_fore, final_back) = if invert {
                     (back_, fore_)
-                }
-                else{
+                } else {
                     (fore_, back_)
                 };
 
@@ -229,67 +229,6 @@ impl ComputedCellGrid {
         }
     }
 
-    const UTF8_BYTE_SIZE: usize = 4;
-    pub fn to_string(
-        &self,
-        colored: bool,
-        charset: Option<&str>,
-        transparency_t: f32
-    ) -> (String, charsets::CharsetWarnings) {
-        let capacity = (self.cells.len() + self.height() as usize)
-            * ComputedCellGrid::UTF8_BYTE_SIZE
-            * if colored { 8 } else { 1 };
-        let mut s = String::with_capacity(capacity);
-
-        let characters: Vec<char> = charset.unwrap_or(charsets::BRAILLE).chars().collect();
-        let mut missing_char: bool = false;
-        for i in 0..self.cells.len() {
-            let cell = &self.cells[i];
-            let index = charsets::cell_bitmask_to_char_index(cell.bitmask);
-
-            let char_ = if index as usize > characters.len() {
-                missing_char = true;
-                '?'
-            } else {
-                characters[index as usize]
-                // '?'
-            };
-
-            if colored {
-                let fore = ansi::convert(cell.fore, true);
-                // print!("{:?}",cell.fore);
-                let back = ansi::convert(cell.back, true);
-
-                if cell.back.a < transparency_t {
-                    if cell.fore.a < transparency_t {
-                        s.push(characters[0]);
-                    }
-                    else{
-                        s.push_str(&fore.paint(char_.to_string()).to_string());
-                    }
-                }
-                else{
-                    s.push_str(&fore.on(back).paint(char_.to_string()).to_string());
-                }
-                
-            } else {
-                s.push(char_);
-            };
-
-            if (i + 1) % (self.width()) as usize == 0 {
-                s.push_str("\n");
-            }
-        }
-
-        (
-            s,
-            if missing_char {
-                charsets::CharsetWarnings::NotEnoughCharacters
-            } else {
-                charsets::CharsetWarnings::None
-            },
-        )
-    }
 
     pub fn width(&self) -> usize {
         self.width

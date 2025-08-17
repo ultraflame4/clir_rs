@@ -8,8 +8,8 @@ pub enum NearestOption {
 pub mod charsets;
 pub mod color;
 pub mod ansi;
-
 pub mod cell;
+pub mod outputs;
 
 pub mod utils{
     use std::process::exit;
