@@ -16,9 +16,9 @@ ansi_term = "0.12.1"
 anyhow = "1.0.82"
 argh = "0.1.12"
 bytemuck = "1.15.0"
-dirs = "5.0.1"
+dirs = "6.0.0"
 image = "0.25.1"
 is-url = "1.0.4"
-reqwest = {version = "0.12.4", features = ["blocking"]}
+reqwest = {version = "0.13.3", features = ["blocking"]}
 shellexpand = "3.1.0"
 termsize = "0.1.6"
