@@ -1,4 +1,3 @@
-use std::fmt::Display;
 
 use crate::{ansi, cell::ComputedCellGrid, charsets};
 
@@ -11,7 +10,7 @@ impl AsciiImageRenderer {
         charset: Option<&str>,
         transparency_t: f32,
     ) -> (String, charsets::CharsetWarnings) {
-        let capacity = (grid.cells.len() + grid.height() as usize)
+        let capacity = (grid.cells.len() + grid.height())
             * ComputedCellGrid::UTF8_BYTE_SIZE
             * if colored { 8 } else { 1 };
         let mut s = String::with_capacity(capacity);
@@ -48,8 +47,8 @@ impl AsciiImageRenderer {
                 s.push(char_);
             };
 
-            if (i + 1) % (grid.width()) as usize == 0 {
-                s.push_str("\n");
+            if (i + 1) % (grid.width()) == 0 {
+                s.push('\n');
             }
         }
 

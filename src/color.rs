@@ -25,12 +25,12 @@ pub struct RGBColorU8 {
 unsafe impl bytemuck::Zeroable for RGBColorU8 {}
 unsafe impl bytemuck::Pod for RGBColorU8 {}
 
-impl Into<RGBColorU8> for Color {
-    fn into(self) -> RGBColorU8 {
+impl From<Color> for RGBColorU8 {
+    fn from(val: Color) -> Self {
         RGBColorU8 {
-            r: (self.r * self.a * 255.0).round().clamp(0.0, 255.0) as u8,
-            g: (self.g * self.a * 255.0).round().clamp(0.0, 255.0) as u8,
-            b: (self.b * self.a * 255.0).round().clamp(0.0, 255.0) as u8,
+            r: (val.r * val.a * 255.0).round().clamp(0.0, 255.0) as u8,
+            g: (val.g * val.a * 255.0).round().clamp(0.0, 255.0) as u8,
+            b: (val.b * val.a * 255.0).round().clamp(0.0, 255.0) as u8,
         }
     }
 }
@@ -77,7 +77,7 @@ impl Color {
     }
     
     pub fn distance2(&self, other: &Self) -> f32 {
-        (self.clone() - other.clone()).mag2()
+        (*self - *other).mag2()
     }
 
     pub fn lerp(self, other: Self, amt: f32) -> Self {

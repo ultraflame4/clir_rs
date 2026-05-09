@@ -112,7 +112,7 @@ impl RenderSettings {
         let new_width = (height_ as f32 * aspect / CELL_W as f32).floor();
         let new_height = (width_ as f32 / aspect / CELL_H as f32).floor();
         if use_width.unwrap_or(new_height < (height as f32)) {
-            (width as usize, new_height as usize)
+            (width, new_height as usize)
         } else {
             (new_width as usize, height)
         }
@@ -174,7 +174,7 @@ impl RenderSettings {
 }
 
 fn read_image(path: &str, debug: bool) -> anyhow::Result<DynamicImage> {
-    anyhow::Ok(if is_url(&path) {
+    anyhow::Ok(if is_url(path) {
         if debug {
             println!("Requesting image from url '{:?}'", path);
         }
@@ -188,7 +188,7 @@ fn read_image(path: &str, debug: bool) -> anyhow::Result<DynamicImage> {
         if debug {
             println!("Expanding source image '{:?}'", &path);
         }
-        let expanded = utils::expand_path(&path);
+        let expanded = utils::expand_path(path);
         println!("Reading image from '{:?}'", expanded);
         ImageReader::open(expanded)?.decode()?
     })
@@ -295,29 +295,26 @@ fn main() -> ExitCode {
         );
     }
 
-    match args.output {
-        Some(path) => {
-            let expanded = utils::expand_path(&path);
-            match File::create(&expanded) {
-                Ok(mut file) => match file.write_all(s.as_bytes()) {
-                    Ok(_) => {
-                        if args.debug {
-                            println!("Wrote output to {:?}", utils::expand_path(&expanded))
-                        }
+    if let Some(path) = args.output {
+        let expanded = utils::expand_path(&path);
+        match File::create(&expanded) {
+            Ok(mut file) => match file.write_all(s.as_bytes()) {
+                Ok(_) => {
+                    if args.debug {
+                        println!("Wrote output to {:?}", utils::expand_path(&expanded))
                     }
+                }
 
-                    Err(e) => eprintln!(
-                        "Failed to write output to path at '{:?}' due to {:?}",
-                        path, e
-                    ),
-                },
                 Err(e) => eprintln!(
                     "Failed to write output to path at '{:?}' due to {:?}",
                     path, e
                 ),
-            }
+            },
+            Err(e) => eprintln!(
+                "Failed to write output to path at '{:?}' due to {:?}",
+                path, e
+            ),
         }
-        None => (),
     }
 
     print!("Command completed in: {:.2?}", before_cmd.elapsed());
