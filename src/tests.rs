@@ -1,11 +1,10 @@
 use std::{env::current_dir, fs};
 
-use image::{ImageReader, Rgba};
+use image::ImageReader;
 
 use crate::{
-    cell::{self, CellGrid, CellPixels},
-    charsets,
-    color::{self, Color},
+    cell::{self, CellGrid},
+    color::Color,
     outputs::AsciiImageRenderer,
 };
 

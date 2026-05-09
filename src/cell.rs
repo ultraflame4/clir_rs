@@ -27,7 +27,7 @@ impl CellGrid {
         let im_w = self.width() * CELL_W;
         let im_h = self.height() * CELL_H;
 
-        let mut data: Vec<Color> = Vec::with_capacity(((im_w * im_h)));
+        let mut data: Vec<Color> = Vec::with_capacity((im_w * im_h) );
 
         for y in 0..im_h {
             for x in 0..im_w {
