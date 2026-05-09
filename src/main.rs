@@ -9,9 +9,10 @@ use clir_rs::{
     cell::{self, CellGrid, CELL_H, CELL_W},
     charsets,
     color::Color,
+    outputs::AsciiImageRenderer,
     utils,
 };
-use image::{io::Reader as ImageReader, DynamicImage};
+use image::{DynamicImage, ImageReader};
 use is_url::is_url;
 
 #[derive(FromArgs, Debug)]
@@ -73,12 +74,12 @@ struct CliArgs {
 
     /// sets the threshold for transparency. When alpha < transparency_t, it resets the back or fore color for the character. If both fore & back is transparent, it replaces it with a space.
     /// This effect can only be seen in terminals where the background is not black. [default: 0.9]
-    #[argh(option, short='t')]
+    #[argh(option, short = 't')]
     transparency_t: Option<f32>,
 
     /// inverts the fore and background cell mask. Colors are also inverted (such that there is no effect on color) respectively.
     #[argh(switch)]
-    invert_cell: bool
+    invert_cell: bool,
 }
 
 const DEFAULT_WIDTH: usize = 100;
@@ -111,7 +112,7 @@ impl RenderSettings {
         let new_width = (height_ as f32 * aspect / CELL_W as f32).floor();
         let new_height = (width_ as f32 / aspect / CELL_H as f32).floor();
         if use_width.unwrap_or(new_height < (height as f32)) {
-            (width as usize, new_height as usize)
+            (width, new_height as usize)
         } else {
             (new_width as usize, height)
         }
@@ -143,7 +144,7 @@ impl RenderSettings {
                 unwrapped_size
             } else {
                 // When use_width is true, it will always scale the height instead.
-                // Hence by using width.is_some(), when -w, it will scale height, 
+                // Hence by using width.is_some(), when -w, it will scale height,
                 // when -h, it will scale width. -w & -h should never happen because it is checked in the previous if condition
                 Self::keep_aspect(
                     unwrapped_size.0,
@@ -173,7 +174,7 @@ impl RenderSettings {
 }
 
 fn read_image(path: &str, debug: bool) -> anyhow::Result<DynamicImage> {
-    anyhow::Ok(if is_url(&path) {
+    anyhow::Ok(if is_url(path) {
         if debug {
             println!("Requesting image from url '{:?}'", path);
         }
@@ -187,7 +188,7 @@ fn read_image(path: &str, debug: bool) -> anyhow::Result<DynamicImage> {
         if debug {
             println!("Expanding source image '{:?}'", &path);
         }
-        let expanded = utils::expand_path(&path);
+        let expanded = utils::expand_path(path);
         println!("Reading image from '{:?}'", expanded);
         ImageReader::open(expanded)?.decode()?
     })
@@ -225,31 +226,41 @@ fn main() -> ExitCode {
 
     use std::time::Instant;
 
-    let before_cell = Instant::now();
-    let mut cells = CellGrid::from(&img.clone().into());
-    let cell_time = before_cell.elapsed();
-
-    let before_round = Instant::now();
-    let mut colored = false;
-    let computed = match config.render_mode {
-        RenderMode::Color => {
-            colored = true;
-            cells.to_computed(args.invert_cell)
-        }
-        RenderMode::NoColor => cells.to_computed(args.invert_cell),
-        RenderMode::PlainText => cells.to_computed_ab(&Color::WHITE, &Color::BLACK, args.invert_cell),
+    let (mut cells, cell_time) = {
+        let now = Instant::now();
+        let cells = CellGrid::from(&img.clone().into());
+        (cells, now.elapsed())
     };
-    let round_cell_time = before_round.elapsed();
 
-    let before_string = Instant::now();
-    let (s, _) = computed.to_string(
-        colored,
-        Some(charsets::get_charset(
-            &args.charset.unwrap_or("".to_string()),
-        )),
-        args.transparency_t.unwrap_or(0.9)
-    );
-    let string_time = before_string.elapsed();
+    let mut colored = false;
+
+    let (computed, compute_time) = {
+        let now = Instant::now();
+        let computed = match config.render_mode {
+            RenderMode::Color => {
+                colored = true;
+                cells.compute(args.invert_cell)
+            }
+            RenderMode::NoColor => cells.compute(args.invert_cell),
+            RenderMode::PlainText => {
+                cells.compute_ab(&Color::WHITE, &Color::BLACK, args.invert_cell)
+            }
+        };
+        (computed, now.elapsed())
+    };
+
+    let (s, string_time) = {
+        let now = Instant::now();
+        let (img, _) = AsciiImageRenderer::render(
+            &computed,
+            colored,
+            Some(charsets::get_charset(
+                &args.charset.unwrap_or("".to_string()),
+            )),
+            args.transparency_t.unwrap_or(0.9),
+        );
+        (img, now.elapsed())
+    };
 
     if args.debug {
         match fs::create_dir("./clir_rs_debug/") {
@@ -280,33 +291,30 @@ fn main() -> ExitCode {
         );
         println!(
             "Cell Generate Time: {:.2?} | Round Cell Pixels time: {:.2?} | String time: {:.2?} | Total compute time {:.2?}",
-            cell_time, round_cell_time, string_time, round_cell_time + string_time + cell_time
+            cell_time, compute_time, string_time, compute_time + string_time + cell_time
         );
     }
 
-    match args.output {
-        Some(path) => {
-            let expanded = utils::expand_path(&path);
-            match File::create(&expanded) {
-                Ok(mut file) => match file.write_all(s.as_bytes()) {
-                    Ok(_) => {
-                        if args.debug {
-                            println!("Wrote output to {:?}", utils::expand_path(&expanded))
-                        }
+    if let Some(path) = args.output {
+        let expanded = utils::expand_path(&path);
+        match File::create(&expanded) {
+            Ok(mut file) => match file.write_all(s.as_bytes()) {
+                Ok(_) => {
+                    if args.debug {
+                        println!("Wrote output to {:?}", utils::expand_path(&expanded))
                     }
+                }
 
-                    Err(e) => eprintln!(
-                        "Failed to write output to path at '{:?}' due to {:?}",
-                        path, e
-                    ),
-                },
                 Err(e) => eprintln!(
                     "Failed to write output to path at '{:?}' due to {:?}",
                     path, e
                 ),
-            }
+            },
+            Err(e) => eprintln!(
+                "Failed to write output to path at '{:?}' due to {:?}",
+                path, e
+            ),
         }
-        None => (),
     }
 
     print!("Command completed in: {:.2?}", before_cmd.elapsed());

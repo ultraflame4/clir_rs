@@ -1,11 +1,11 @@
 pub const CELL_W: usize = 2;
 pub const CELL_H: usize = 4;
 pub const CELL_LEN: usize = CELL_W * CELL_H;
-pub type CellPixels = [Color; CELL_LEN as usize];
+pub type CellPixels = [Color; CELL_LEN];
 
 use image::Rgba;
 
-use crate::{ansi, charsets, color::Color, NearestOption};
+use crate::{color::Color, NearestOption};
 pub struct CellGrid {
     pub cells: Vec<CellPixels>,
     width: usize,
@@ -27,7 +27,7 @@ impl CellGrid {
         let im_w = self.width() * CELL_W;
         let im_h = self.height() * CELL_H;
 
-        let mut data: Vec<Color> = Vec::with_capacity((im_w * im_h) as usize);
+        let mut data: Vec<Color> = Vec::with_capacity((im_w * im_h) );
 
         for y in 0..im_h {
             for x in 0..im_w {
@@ -45,7 +45,7 @@ impl CellGrid {
 
                 // println!("Pixel XY {},{} | Cell index {} X {} Y {} | Pixel offset {} X {} Y {}",x,y , cell_index, cell_x, cell_y, pixel_offset, pixel_offset_x, pixel_offset_y);
 
-                data.push(self.cells[cell_index as usize][pixel_offset as usize])
+                data.push(self.cells[cell_index][pixel_offset])
             }
         }
 
@@ -76,7 +76,7 @@ impl From<&image::Rgba32FImage> for CellGrid {
                 // Todo optimise this portion. When using test_image_2, ~30ms is used for looping. Another ~10ms is used for creating the cells
                 #[rustfmt::skip]
                 let cell_pixels = [
-                    img.get_pixel(cell_x, cell_y + 0).0, img.get_pixel(cell_x + 1,cell_y + 0).0,
+                    img.get_pixel(cell_x, cell_y).0, img.get_pixel(cell_x + 1,cell_y).0,
                     img.get_pixel(cell_x, cell_y + 1).0, img.get_pixel(cell_x + 1,cell_y + 1).0,
                     img.get_pixel(cell_x, cell_y + 2).0, img.get_pixel(cell_x + 1,cell_y + 2).0,
                     img.get_pixel(cell_x, cell_y + 3).0, img.get_pixel(cell_x + 1,cell_y + 3).0,
@@ -103,7 +103,7 @@ pub fn compute_minmax_contrast(values: &CellPixels) -> (Color, Color) {
     let mut current_max_bright_dist: f32 = 0.0;
     let mut current_max_dark_dist: f32 = 0.0;
     let mut pair: [Color; 2] = [Color::WHITE, Color::BLACK];
-    let avg = values.iter().fold(Color::TRANSPARENT, |a, b| a + b.clone()) / values.len() as f32;
+    let avg = values.iter().fold(Color::TRANSPARENT, |a, b| a + *b) / values.len() as f32;
 
     // Hybrid approach where we use find the values closest to the darkest & lightest possible values (transparent & white)
     // This in theory should give us the colors with the biggest contrast
@@ -129,7 +129,7 @@ pub fn compute_minmax_contrast(values: &CellPixels) -> (Color, Color) {
     let a = avg.lerp(pair[0], 0.75); // lerp results to reduces sharpness and better consistency
     let b = avg.lerp(pair[1], 0.75);
 
-    return (a, b);
+    (a, b)
 }
 
 /// Rounds & flattens the pixels colours in the cells to either a or b. \
@@ -139,17 +139,17 @@ pub fn compute_minmax_contrast(values: &CellPixels) -> (Color, Color) {
 ///
 /// Returns (Rounded CellPixels, bitmask)
 pub fn cell_flatten_ab(val: &CellPixels, a: &Color, b: &Color) -> (CellPixels, u8) {
-    let mut copy = val.clone();
+    let mut copy = *val;
     let mut mask: u8 = 0;
     for p_index in 0..copy.len() {
-        let current = copy[p_index].clone();
+        let current = copy[p_index];
 
         copy[p_index] = match Color::compare_nearest(&current, a, b) {
             NearestOption::A => {
-                mask |= (2 as u8).pow(p_index as u32);
-                a.clone()
+                mask |= 2_u8.pow(p_index as u32);
+                *a
             }
-            NearestOption::B => b.clone(),
+            NearestOption::B => *b,
         };
     }
     (copy, mask)
@@ -168,14 +168,14 @@ pub fn round_cells(cells: &mut Vec<CellPixels>) {
 pub fn round_cells_with_ab(cells: &mut Vec<CellPixels>, a: &Color, b: &Color) {
     for i in 0..cells.len() {
         let ele = &cells[i];
-        (cells[i], _) = cell_flatten_ab(ele, &a, &b);
+        (cells[i], _) = cell_flatten_ab(ele, a, b);
     }
 }
 
 pub struct ComputedCell {
-    fore: Color,
-    back: Color,
-    bitmask: u8,
+    pub fore: Color,
+    pub back: Color,
+    pub bitmask: u8,
 }
 
 pub struct ComputedCellGrid {
@@ -185,31 +185,31 @@ pub struct ComputedCellGrid {
 }
 
 impl CellGrid {
-    pub fn to_computed(&self, invert: bool) -> ComputedCellGrid {
+    pub fn compute(&self, invert: bool) -> ComputedCellGrid {
         ComputedCellGrid::create(self, None, None, invert)
     }
 
-    pub fn to_computed_ab(&self, a: &Color, b: &Color, invert: bool) -> ComputedCellGrid {
+    pub fn compute_ab(&self, a: &Color, b: &Color, invert: bool) -> ComputedCellGrid {
         ComputedCellGrid::create(self, Some(a), Some(b), invert)
     }
 }
 
 impl ComputedCellGrid {
+    pub const UTF8_BYTE_SIZE: usize = 4;
     fn create(grid: &CellGrid, fore: Option<&Color>, back: Option<&Color>, invert: bool) -> Self {
         let computed_cells: Vec<ComputedCell> = grid
             .cells
             .iter()
             .map(|x| {
                 let (fore_, back_) = if fore.is_some() && back.is_some() {
-                    (fore.unwrap().clone(), back.unwrap().clone())
+                    (*fore.unwrap(), *back.unwrap())
                 } else {
                     compute_minmax_contrast(x)
                 };
 
-                let (final_fore, final_back) = if invert{
+                let (final_fore, final_back) = if invert {
                     (back_, fore_)
-                }
-                else{
+                } else {
                     (fore_, back_)
                 };
 
@@ -229,67 +229,6 @@ impl ComputedCellGrid {
         }
     }
 
-    const UTF8_BYTE_SIZE: usize = 4;
-    pub fn to_string(
-        &self,
-        colored: bool,
-        charset: Option<&str>,
-        transparency_t: f32
-    ) -> (String, charsets::CharsetWarnings) {
-        let capacity = (self.cells.len() + self.height() as usize)
-            * ComputedCellGrid::UTF8_BYTE_SIZE
-            * if colored { 8 } else { 1 };
-        let mut s = String::with_capacity(capacity);
-
-        let characters: Vec<char> = charset.unwrap_or(charsets::BRAILLE).chars().collect();
-        let mut missing_char: bool = false;
-        for i in 0..self.cells.len() {
-            let cell = &self.cells[i];
-            let index = charsets::cell_bitmask_to_char_index(cell.bitmask);
-
-            let char_ = if index as usize > characters.len() {
-                missing_char = true;
-                '?'
-            } else {
-                characters[index as usize]
-                // '?'
-            };
-
-            if colored {
-                let fore = ansi::convert(cell.fore, true);
-                // print!("{:?}",cell.fore);
-                let back = ansi::convert(cell.back, true);
-
-                if cell.back.a < transparency_t {
-                    if cell.fore.a < transparency_t {
-                        s.push(characters[0]);
-                    }
-                    else{
-                        s.push_str(&fore.paint(char_.to_string()).to_string());
-                    }
-                }
-                else{
-                    s.push_str(&fore.on(back).paint(char_.to_string()).to_string());
-                }
-                
-            } else {
-                s.push(char_);
-            };
-
-            if (i + 1) % (self.width()) as usize == 0 {
-                s.push_str("\n");
-            }
-        }
-
-        (
-            s,
-            if missing_char {
-                charsets::CharsetWarnings::NotEnoughCharacters
-            } else {
-                charsets::CharsetWarnings::None
-            },
-        )
-    }
 
     pub fn width(&self) -> usize {
         self.width
