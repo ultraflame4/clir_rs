@@ -12,7 +12,7 @@ use clir_rs::{
     outputs::AsciiImageRenderer,
     utils,
 };
-use image::{io::Reader as ImageReader, DynamicImage};
+use image::{DynamicImage, ImageReader};
 use is_url::is_url;
 
 #[derive(FromArgs, Debug)]
@@ -233,7 +233,7 @@ fn main() -> ExitCode {
     };
 
     let mut colored = false;
-    
+
     let (computed, compute_time) = {
         let now = Instant::now();
         let computed = match config.render_mode {
