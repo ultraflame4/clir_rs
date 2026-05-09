@@ -1,6 +1,6 @@
 use std::{env::current_dir, fs};
 
-use image::{io::Reader as ImageReader, Rgba};
+use image::{ImageReader, Rgba};
 
 use crate::{
     cell::{self, CellGrid, CellPixels},
@@ -104,7 +104,7 @@ fn print_bw_test() {
         .unwrap();
 
     use std::time::Instant;
-    
+
     let (mut cells, cell_generation_time) = {
         let now = Instant::now();
         let cells = CellGrid::from(&img.clone().into());
@@ -188,7 +188,6 @@ fn print_colored_test() {
         cell_generation_time, round_cell_time, string_time
     );
 }
-
 
 #[test]
 fn large_colored_test() {
